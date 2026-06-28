@@ -1,5 +1,21 @@
-from ecip_core.Inference.config.settings import settings
+from ecip_core.prompt.prompt_builder import PromptBuilder
+from ecip_core.inference.providers.ollama_provider import OllamaProvider
 
-print(settings.MODEL_NAME)
-print(settings.OLLAMA_BASE_URL)
-print(settings.TEMPERATURE)
+
+def main():
+
+    builder = PromptBuilder()
+
+    provider = OllamaProvider()
+
+    prompt = builder.build_prompt(
+        question="Explain Dependency Injection."
+    )
+
+    answer = provider.generate(prompt)
+
+    print(answer)
+
+
+if __name__ == "__main__":
+    main()
