@@ -1,20 +1,25 @@
-from ecip_core.prompt.prompt_builder import PromptBuilder
-from ecip_core.inference.providers.ollama_provider import OllamaProvider
+from ecip_core.inference.inference_service import InferenceService
 
 
 def main():
 
-    builder = PromptBuilder()
+    service = InferenceService()
 
-    provider = OllamaProvider()
+    while True:
 
-    prompt = builder.build_prompt(
-        question="Explain Dependency Injection."
-    )
+        question = input("\nAsk ECIP > ")
 
-    answer = provider.generate(prompt)
+        if question.lower() in ["exit", "quit"]:
 
-    print(answer)
+            print("Goodbye 👋")
+
+            break
+
+        answer = service.ask(question)
+
+        print("\nECIP:\n")
+
+        print(answer)
 
 
 if __name__ == "__main__":
