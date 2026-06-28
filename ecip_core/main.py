@@ -1,25 +1,32 @@
-from ecip_core.inference.inference_service import InferenceService
+from ecip_core.coordinator.query_coordinator import QueryCoordinator
+from ecip_core.models.request import InferenceRequest
 
 
 def main():
 
-    service = InferenceService()
+    coordinator = QueryCoordinator()
+
+    print("=" * 60)
+    print("🚀 Welcome to ECIP Lite")
+    print("Type 'exit' to quit.")
+    print("=" * 60)
 
     while True:
 
         question = input("\nAsk ECIP > ")
 
-        if question.lower() in ["exit", "quit"]:
-
+        if question.lower() in {"exit", "quit"}:
             print("Goodbye 👋")
-
             break
 
-        answer = service.ask(question)
+        request = InferenceRequest(
+            question=question
+        )
+
+        response = coordinator.process(request)
 
         print("\nECIP:\n")
-
-        print(answer)
+        print(response.answer)
 
 
 if __name__ == "__main__":
