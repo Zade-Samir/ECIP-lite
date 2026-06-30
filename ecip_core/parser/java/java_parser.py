@@ -1,18 +1,31 @@
+from ecip_core.parser.models import parsed_java_file
+from ecip_core.parser.models import parsed_java_file
+from ecip_core.parser.models import parsed_java_file
+from ecip_core.parser.models import parsed_java_file
 from pathlib import Path
 
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 
+from ecip_core.common.logger import get_logger
+
+logger = get_logger(__name__)
 
 class JavaParser:
 
     def parse(self, file_path: str) -> ParsedJavaFile:
+
+        path = Path(file_path)
 
         package_name = None
         imports = []
         class_name = None
         methods = []
 
-        with open(file_path, "r") as file:
+        logger.info(f"Parsing file: {path}")
+
+        with open(path, "r", encoding="utf-8") as file:
+
+            logger.info(f"Parsing {file}")
 
             for line in file:
 
@@ -53,6 +66,8 @@ class JavaParser:
                     methods.append(method_name)
 
         return ParsedJavaFile(
+            file_name=path.name,
+            file_path=str(path.resolve()),
             package_name=package_name,
             imports=imports,
             class_name=class_name,

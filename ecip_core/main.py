@@ -1,9 +1,10 @@
-from ecip_core.parser.java.java_parser import JavaParser
+from ecip_core.parser.java.project_parser import JavaProjectParser
 
-parser = JavaParser()
+parser = JavaProjectParser()
 
-result = parser.parse(
-    "projects/sampleProject/UserService.java"
+files = parser.parse_project(
+    "projects/sampleProject"
 )
 
-print(result.model_dump())
+for file in files:
+    print(file.model_dump())

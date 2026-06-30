@@ -1,16 +1,17 @@
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedJavaFile(BaseModel):
     """
-    Represents extracted information from a Java source file.
+    Represents the parsed information extracted from a Java source file.
     """
 
-    package_name: str | None = None
+    file_name: str
+    file_path: str
 
-    imports: list[str] = []
+    package_name: str | None = None
+    imports: list[str] = Field(default_factory=list)
 
     class_name: str | None = None
-
-    methods: list[str] = []
+    methods: list[str] = Field(default_factory=list)

@@ -1,15 +1,16 @@
 package projects.sampleProject;
 
-import org.springframework.stereotype.Service;
-
 @Service
 public class UserService {
 
-    public String getUser() {
-        return "Samir";
+    @Autowired
+    private UserRepository repository;
+
+    public List<User> getAllUsers() {
+        return repository.findAll();
     }
 
-    public void saveUser() {
-
+    public User getUserById(Long id) {
+        return repository.findById(id);
     }
 }
