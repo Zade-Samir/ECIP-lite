@@ -7,6 +7,9 @@ from ecip_core.models.response import InferenceResponse
 from ecip_core.prompt.prompt_builder import PromptBuilder
 from ecip_core.inference.providers.ollama_provider import OllamaProvider
 from ecip_core.inference.config.settings import settings
+from ecip_core.common.logger import get_logger
+
+logger = get_logger(__name__)
 
 ## This is the main orchestrator. Isko sab kuch pata hai. Iska kaam hai sabko jod ke rakhna.
 class InferenceService:
@@ -24,9 +27,22 @@ class InferenceService:
         self.inference_provider = OllamaProvider()
 
     def ask(self, request: InferenceRequest) -> InferenceResponse:
+
+        logger.info("Building prompt...")
+
         prompt = self.prompt_builder.build_prompt(request.question)
+
+        logger.info("Prompt generated successfully.")
+
+        logger.info("Generating answer from provider...")
         answer = self.inference_provider.generate(prompt)
-        return InferenceResponse(
+        logger.info("Answer generated successfully.")
+
+        logger.info("Creating response...")
+        response = InferenceResponse(
             answer=answer,
             model=settings.MODEL_NAME
         )
+        logger.info("Response created successfully.")
+        
+        return response

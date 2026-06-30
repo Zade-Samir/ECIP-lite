@@ -2,6 +2,9 @@ from ecip_core.inference.inference_service import InferenceService
 from ecip_core.models.request import InferenceRequest
 from ecip_core.models.response import InferenceResponse
 
+from ecip_core.common.logger import get_logger
+
+logger = get_logger(__name__)
 
 class QueryCoordinator:
     """
@@ -29,4 +32,8 @@ class QueryCoordinator:
         request: InferenceRequest
     ) -> InferenceResponse:
 
+        logger.info("Received new query.")
+
         return self.inference_service.ask(request)
+
+        logger.info("Query processed successfully.")
