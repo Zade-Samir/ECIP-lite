@@ -1,6 +1,8 @@
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 from ecip_core.storage.sqlite.database import Database
+from ecip_core.common.logger import get_logger
 
+logger = get_logger(__name__)
 
 class JavaRepository:
 
@@ -12,6 +14,8 @@ class JavaRepository:
         self,
         parsed_file: ParsedJavaFile
     ):
+
+        logger.info(f"Saving file metadata: {parsed_file.file_name}")
 
         cursor = self.connection.cursor()
 
@@ -56,3 +60,125 @@ class JavaRepository:
             )
 
         self.connection.commit()
+        logger.info(f"Saved {len(parsed_file.methods)} methods for {parsed_file.class_name}")
+
+
+
+    def get_all_files(self) -> list[dict]:
+
+        logger.info("Fetching all Java files")
+
+        cursor = self.connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                file_name,
+                package_name,
+                class_name
+            FROM java_files
+        """)
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "file_name": row[0],
+                "package_name": row[1],
+                "class_name": row[2]
+            }
+            for row in rows
+        ]
+    
+
+
+    def find_by_class_name(
+            self,
+            class_name: str
+        ) -> dict | None:
+
+        logger.info(f"Searching class: {class_name}")
+
+        cursor = self.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                *
+            FROM java_files
+            WHERE class_name = ?
+            """,
+            (class_name,)
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "id": row[0],
+            "file_name": row[1],
+            "file_path": row[2],
+            "package_name": row[3],
+            "class_name": row[4],
+        }
+
+
+
+    def find_methods(
+            self,
+            class_name: str
+        ) -> list[str]:
+
+        logger.info(f"Fetching methods of class: {class_name}")
+
+        cursor = self.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                jm.method_name
+            FROM java_methods jm
+            JOIN java_files jf
+                ON jm.file_id = jf.id
+            WHERE jf.class_name = ?
+            """,
+            (class_name,)
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            row[0]
+            for row in rows
+        ]
+
+
+    def find_file_by_method(
+            self,
+            method_name: str
+        ):
+
+        logger.info(f"Searching method: {method_name}")
+
+        cursor = self.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                jf.file_name,
+                jf.class_name
+            FROM java_files jf
+            JOIN java_methods jm
+                ON jf.id = jm.file_id
+            WHERE jm.method_name = ?
+            """,
+            (method_name,)
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            row[0]
+            for row in rows
+        ]

@@ -1,19 +1,15 @@
-from ecip_core.parser.java.project_parser import JavaProjectParser
 from ecip_core.storage.sqlite.repository import JavaRepository
-from ecip_core.storage.sqlite.schema import SchemaManager
-
-SchemaManager().create_tables()
 
 repository = JavaRepository()
 
-parser = JavaProjectParser()
+print("\nAll Files")
+print(repository.get_all_files())
 
-files = parser.parse_project(
-    "projects/sampleProject"
-)
+print("\nUserService")
+print(repository.find_by_class_name("UserService"))
 
-for parsed in files:
+print("\nMethods")
+print(repository.find_methods("UserService"))
 
-    repository.save(parsed)
-
-print("Done")
+print("\nMethod Search")
+print(repository.find_file_by_method("getUser"))
