@@ -25,7 +25,6 @@ class JavaRepository:
             (
                 file_name,
                 file_path,
-                package_name,
                 class_name
             )
             VALUES
@@ -34,6 +33,7 @@ class JavaRepository:
             (
                 parsed_file.file_name,
                 parsed_file.file_path,
+                parsed_file.source_code,
                 parsed_file.package_name,
                 parsed_file.class_name,
             ),

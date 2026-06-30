@@ -15,13 +15,9 @@ class SchemaManager:
         CREATE TABLE IF NOT EXISTS java_files (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             file_name TEXT,
-
             file_path TEXT,
-
             package_name TEXT,
-
             class_name TEXT
         );
         """)
@@ -30,11 +26,8 @@ class SchemaManager:
         CREATE TABLE IF NOT EXISTS java_methods (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             file_id INTEGER,
-
             method_name TEXT,
-
             FOREIGN KEY(file_id)
             REFERENCES java_files(id)
         );

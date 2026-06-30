@@ -21,9 +21,12 @@ class JavaParser:
 
         try:
 
+            source_code = ""
             with open(path, "r", encoding="utf-8") as file:
 
-                for line in file:
+                source_code = file.read()
+
+                for line in source_code.splitlines():
 
                     line = line.strip()
 
@@ -72,6 +75,7 @@ class JavaParser:
         return ParsedJavaFile(
             file_name=path.name,
             file_path=str(path.resolve()),
+            source_code=source_code,
             package_name=package_name,
             imports=imports,
             class_name=class_name,

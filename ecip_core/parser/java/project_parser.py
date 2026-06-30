@@ -2,6 +2,7 @@ from pathlib import Path
 
 from ecip_core.parser.java.java_parser import JavaParser
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
+from ecip_core.scanner.project_scanner import ProjectScanner
 
 
 class JavaProjectParser:
@@ -16,9 +17,15 @@ class JavaProjectParser:
 
         parsed_files = []
 
-        project = Path(project_path)
+        self.scanner = ProjectScanner()
 
-        for java_file in project.rglob("*.java"):
+        java_files = self.scanner.scan(project_path)
+
+        for java_file in java_files:
+
+            parsed = self.parser.parse(str(java_file))
+
+            parsed_files.append(parsed)
 
             parsed = self.parser.parse(
                 str(java_file)

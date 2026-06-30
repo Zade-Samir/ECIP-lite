@@ -1,15 +1,10 @@
-from ecip_core.storage.sqlite.repository import JavaRepository
+from ecip_core.chunking.java_chunker import JavaChunker
 
-repository = JavaRepository()
+chunker = JavaChunker()
 
-print("\nAll Files")
-print(repository.get_all_files())
+chunks = chunker.chunk(
+    "projects/sampleProject/UserService.java"
+)
 
-print("\nUserService")
-print(repository.find_by_class_name("UserService"))
-
-print("\nMethods")
-print(repository.find_methods("UserService"))
-
-print("\nMethod Search")
-print(repository.find_file_by_method("getUser"))
+for chunk in chunks:
+    print(chunk.model_dump())
