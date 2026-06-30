@@ -1,7 +1,6 @@
+from importlib.resources import path
 from ecip_core.parser.models import parsed_java_file
-from ecip_core.parser.models import parsed_java_file
-from ecip_core.parser.models import parsed_java_file
-from ecip_core.parser.models import parsed_java_file
+
 from pathlib import Path
 
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
@@ -21,55 +20,63 @@ class JavaParser:
         class_name = None
         methods = []
 
-        logger.info(f"Parsing file: {path}")
+        logger.info(f"Parsing file: {path.name}")
 
-        with open(path, "r", encoding="utf-8") as file:
+        try:
+            with open(path, "r", encoding="utf-8") as file:
 
-            logger.info(f"Parsing {file}")
+                logger.info(f"Parsing {file}")
 
-            for line in file:
+                for line in file:
 
-                line = line.strip()
+                    line = line.strip()
 
-                if line.startswith("package "):
-                    package_name = line.replace(
-                        "package ",
-                        ""
-                    ).replace(";", "")
-
-                elif line.startswith("import "):
-                    imports.append(
-                        line.replace(
-                            "import ",
+                    if line.startswith("package "):
+                        package_name = line.replace(
+                            "package ",
                             ""
                         ).replace(";", "")
-                    )
 
-                elif " class " in line:
-                    class_name = (
-                        line.split("class")[1]
-                        .split("{")[0]
-                        .strip()
-                    )
+                    elif line.startswith("import "):
+                        imports.append(
+                            line.replace(
+                                "import ",
+                                ""
+                            ).replace(";", "")
+                        )
 
-                elif (
-                    "(" in line
-                    and ")" in line
-                    and line.endswith("{")
-                    and "class" not in line
-                ):
-                    method_name = (
-                        line.split("(")[0]
-                        .split()[-1]
-                    )
+                    elif " class " in line:
+                        class_name = (
+                            line.split("class")[1]
+                            .split("{")[0]
+                            .strip()
+                        )
 
-                    methods.append(method_name)
+                    elif (
+                        "(" in line
+                        and ")" in line
+                        and line.endswith("{")
+                        and "class" not in line
+                    ):
+                        method_name = (
+                            line.split("(")[0]
+                            .split()[-1]
+                        )
 
-        return ParsedJavaFile(
-            file_name=path.name,
-            file_path=str(path.resolve()),
-            package_name=package_name,
-            imports=imports,
-            class_name=class_name,
-            methods=methods,
-        )
+                        methods.append(method_name.strip())
+            
+                logger.info(f"Successfully parsed {path.name}")
+
+                return ParsedJavaFile(
+                    file_name=path.name,
+                    file_path=str(path.resolve()),
+                    package_name=package_name,
+                    imports=imports,
+                    class_name=class_name,
+                    methods=methods,
+                )
+        except FileNotFoundError:
+            logger.error(f"File not found: {path}")
+            raise
+
+        

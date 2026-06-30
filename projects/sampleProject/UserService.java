@@ -1,5 +1,7 @@
 package projects.sampleProject;
 
+import test.java;
+
 @Service
 public class UserService {
 
