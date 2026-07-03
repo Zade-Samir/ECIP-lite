@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     STREAM: bool = False
 
+    EMBEDDING_DIMENSION: int = 768
+
     SYSTEM_PROMPT: str = (
         "You are ECIP, an expert Java and Spring Boot Architect."
     )
