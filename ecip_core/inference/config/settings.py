@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     STREAM: bool = False
 
+    EMBEDDING_MODEL: str = "nomic-embed-text"
+
     EMBEDDING_DIMENSION: int = 768
 
     SYSTEM_PROMPT: str = (

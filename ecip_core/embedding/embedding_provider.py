@@ -10,8 +10,9 @@ class EmbeddingProvider(ABC):
     """
 
     @abstractmethod
-    def generate(
+
+    def embed(
         self,
-        chunk: CodeChunk
-    ) -> Embedding:
+        text: str
+    ) -> list[float]:
         pass

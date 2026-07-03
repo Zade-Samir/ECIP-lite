@@ -10,37 +10,77 @@ class JavaRepository:
 
         self.connection = Database().get_connection()
 
-    def save(
-        self,
-        parsed_file: ParsedJavaFile
-    ):
-
-        logger.info(f"Saving file metadata: {parsed_file.file_name}")
+    def save(self, parsed_file: ParsedJavaFile):
 
         cursor = self.connection.cursor()
 
+        # Step 1
         cursor.execute(
             """
-            INSERT INTO java_files
-            (
-                file_name,
-                file_path,
-                package_name,
-                class_name
-            )
-            VALUES
-            (?, ?, ?, ?)
+            SELECT id
+            FROM java_files
+            WHERE file_path = ?
             """,
-            (
-                parsed_file.file_name,
-                parsed_file.file_path,
-                parsed_file.package_name,
-                parsed_file.class_name,
-            ),
+            (parsed_file.file_path,)
         )
 
-        file_id = cursor.lastrowid
+        existing = cursor.fetchone()
 
+        if existing:
+
+            file_id = existing[0]
+
+            # Update metadata
+            cursor.execute(
+                """
+                UPDATE java_files
+                SET
+                    file_name = ?,
+                    package_name = ?,
+                    class_name = ?
+                WHERE id = ?
+                """,
+                (
+                    parsed_file.file_name,
+                    parsed_file.package_name,
+                    parsed_file.class_name,
+                    file_id,
+                ),
+            )
+
+            # Remove old methods
+            cursor.execute(
+                """
+                DELETE FROM java_methods
+                WHERE file_id = ?
+                """,
+                (file_id,),
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                INSERT INTO java_files
+                (
+                    file_name,
+                    file_path,
+                    package_name,
+                    class_name
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    parsed_file.file_name,
+                    parsed_file.file_path,
+                    parsed_file.package_name,
+                    parsed_file.class_name,
+                ),
+            )
+
+            file_id = cursor.lastrowid
+
+        # Insert fresh methods
         for method in parsed_file.methods:
 
             cursor.execute(
@@ -50,8 +90,7 @@ class JavaRepository:
                     file_id,
                     method_name
                 )
-                VALUES
-                (?, ?)
+                VALUES (?, ?)
                 """,
                 (
                     file_id,
@@ -60,7 +99,6 @@ class JavaRepository:
             )
 
         self.connection.commit()
-        logger.info(f"Saved {len(parsed_file.methods)} methods for {parsed_file.class_name}")
 
 
 

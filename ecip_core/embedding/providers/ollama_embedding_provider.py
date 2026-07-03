@@ -3,6 +3,7 @@ from ollama import embed
 from ecip_core.chunking.code_chunk import CodeChunk
 from ecip_core.embedding.embedding_provider import EmbeddingProvider
 from ecip_core.embedding.models.embedding import Embedding
+from ecip_core.inference.config.settings import settings
 
 
 class OllamaEmbeddingProvider(EmbeddingProvider):
@@ -26,3 +27,14 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             source_code=chunk.source_code,
             vector=response["embeddings"][0]
         )
+
+    def embed(
+        self,
+        text: str
+    ) -> list[float]:
+    
+        response = embed(
+            model=settings.EMBEDDING_MODEL,
+            input=text
+        )
+        return response["embeddings"][0]

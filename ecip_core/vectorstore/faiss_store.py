@@ -1,3 +1,4 @@
+from ecip_core.embedding import embedding_service
 import faiss
 import numpy as np
 from ecip_core.inference.config.settings import settings
@@ -62,3 +63,14 @@ class FAISSStore:
             )
 
         return results
+
+    def search_question(
+        self,
+        question: str,
+        embedding_service,
+        k: int = 3,
+        ):
+
+        vector = embedding_service.embed_question(question)
+
+        return self.search(vector, k)
