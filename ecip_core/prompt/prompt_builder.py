@@ -5,18 +5,25 @@ from ecip_core.inference.config.settings import settings
 
 class PromptBuilder:
     """
-    Responsible for building prompts for the LLM.
+    Builds prompts for the LLM.
     """
 
-    def build_prompt(self, question: str, context: str | None = None) -> str:
+    def build_prompt(
+        self,
+        question: str,
+        context: str = ""
+    ) -> str:
+
         return f"""
-{settings.SYSTEM_PROMPT}
+You are a Senior Java Architect.
 
-Instructions:
-- Answer professionally.
-- Explain clearly.
-- Use simple language where possible.
+Use the provided project context if available.
+If no project context is available, answer using your own knowledge.
 
-User Question:
+{context}
+
+Question:
 {question}
-""".strip()
+
+Answer:
+"""

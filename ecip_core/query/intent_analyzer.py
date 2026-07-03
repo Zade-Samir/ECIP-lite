@@ -3,14 +3,11 @@ from ecip_core.query.intent import QueryIntent
 
 class IntentAnalyzer:
 
-    def detect(
-        self,
-        question: str
-    ) -> QueryIntent:
+    def detect(self, question: str) -> QueryIntent:
 
         q = question.lower()
 
-        if "list files" in q:
+        if "list" in q and "file" in q:
             return QueryIntent.LIST_FILES
 
         if "methods" in q:
