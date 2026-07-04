@@ -1,115 +1,72 @@
-from pydantic import BaseModel
+# ECIP Lite 🚀
 
+**ECIP Lite (Enterprise Code Intelligence Platform Lite)** is a secure, local-first code intelligence and analysis assistant. It enables developers to index codebases and perform queries against them while maintaining complete data privacy by running language models locally.
 
-class CodeChunk(BaseModel):
-    """
-    Represents a chunk of Java source code.
-    """
+---
 
-    file_name: str
+## ✨ Features
 
-    class_name: str
+- **Local & Secure:** Runs entirely on-premise or locally. No external APIs, third-party data transmission, or cloud dependencies.
+- **Codebase Indexing:** Extracts high-level structural metadata from source code (e.g., classes, methods, packages).
+- **Interactive Query Engine:** Integrates local LLMs with codebase context to answer technical questions and analyze project architecture.
+- **Configurable LLM Pipeline:** Supports custom model endpoints, temperature adjustments, and customizable system prompts.
 
-    method_name: str
+---
 
-    source_code: str
+## 🛠️ Prerequisites
 
+1. **Python:** Version 3.10 or higher.
+2. **Ollama:** Installed and running locally.
+   - Recommended model: `qwen3.5:9b` or any compatible code model.
+   - Run the model: `ollama run qwen3.5:9b`
 
-from pathlib import Path
+---
 
-from ecip_core.chunking.code_chunk import CodeChunk
+## 🚀 Getting Started
 
+### 1. Installation
 
-class JavaChunker:
+Clone the repository and install the required dependencies:
 
-    def chunk(
-        self,
-        file_path: str
-    ) -> list[CodeChunk]:
+```bash
+# Navigate to the project directory
+cd ecip-lite
 
-        path = Path(file_path)
+# Create and activate a virtual environment (optional but recommended)
+python3 -m venv .venv
+source .venv/bin/activate
 
-        with open(path, "r", encoding="utf-8") as file:
-            source = file.read()
+# Install dependencies
+pip install -r requirements.txt
+```
 
-        return [
-            CodeChunk(
-                file_name=path.name,
-                class_name="Unknown",
-                method_name="WholeFile",
-                source_code=source,
-            )
-        ]
+### 2. Configuration
 
+Create or modify the `.env` file in the root directory to customize model configurations:
 
-import logging
-import sys
+```env
+# URL where your local Ollama instance is running
+OLLAMA_BASE_URL=http://localhost:11434
 
+# Model to use for inference
+MODEL_NAME=qwen3.5:9b
 
-def get_logger(name: str) -> logging.Logger:
-    """
-    Returns a configured logger instance.
-    Every ECIP module should use this logger.
-    """
+# Generation settings
+TEMPERATURE=0.2
+TOP_P=0.9
+MAX_TOKENS=4096
+STREAM=false
 
-    logger = logging.getLogger(name)
+# System persona/prompt
+SYSTEM_PROMPT="You are ECIP, an expert Java and Spring Boot Architect."
+```
 
-    if logger.hasHandlers():
-        return logger
+### 3. Running the Assistant
 
-    logger.setLevel(logging.INFO)
+Run the interactive command-line interface to start asking questions:
 
-    formatter = logging.Formatter(
-        "[%(asctime)s] %(levelname)s | %(name)s | %(message)s",
-        datefmt="%H:%M:%S",
-    )
+```bash
+python -m ecip_core.main
+```
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(console_handler)
-
-    return logger
-
-
-from ecip_core.inference.inference_service import InferenceService
-from ecip_core.models.request import InferenceRequest
-from ecip_core.models.response import InferenceResponse
-
-from ecip_core.common.logger import get_logger
-
-logger = get_logger(__name__)
-
-class QueryCoordinator:
-    """
-    Main workflow coordinator of ECIP.
-
-    Responsibilities:
-    - Receive user requests.
-    - Coordinate the complete processing pipeline.
-    - Delegate inference to InferenceService.
-
-    Future Responsibilities:
-    - Project validation
-    - Parser execution
-    - Chunk retrieval
-    - Project Memory
-    - Graph Traversal
-    - Context Assembly
-    """
-
-    def __init__(self):
-        self.inference_service = InferenceService()
-
-    def process(
-        self,
-        request: InferenceRequest
-    ) -> InferenceResponse:
-
-        logger.info("Received new query.")
-
-        return self.inference_service.ask(request)
-
-        logger.info("Query processed successfully.")
-
-
+Type your questions inside the prompt, and type `exit` or `quit` to close the session.
