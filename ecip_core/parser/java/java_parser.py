@@ -13,9 +13,7 @@ class JavaParser:
     """
 
     def parse(self, file_path: str) -> ParsedJavaFile:
-
         path = Path(file_path)
-
         package_name: str | None = None
         imports: list[str] = []
         class_name: str | None = None
@@ -24,57 +22,73 @@ class JavaParser:
         logger.info(f"Parsing file: {path.name}")
 
         try:
-
             with open(path, "r", encoding="utf-8") as file:
+                lines = file.readlines()
 
-                for line_number, line in enumerate(file, start=1):
+            line_number = 0
+            while line_number < len(lines):
+                line = lines[line_number].strip()
 
-                    line = line.strip()
+                # ---------------- Package ----------------
+                if line.startswith("package "):
+                    package_name = (
+                        line.replace("package ", "")
+                        .replace(";", "")
+                    )
 
-                    if line.startswith("package "):
-                        package_name = (
-                            line.replace("package ", "")
-                            .replace(";", "")
+                # ---------------- Imports ----------------
+                elif line.startswith("import "):
+                    imports.append(
+                        line.replace("import ", "")
+                        .replace(";", "")
+                    )
+
+                # ---------------- Class ----------------
+                elif " class " in line:
+                    class_name = (
+                        line.split("class")[1]
+                        .split("{")[0]
+                        .strip()
+                    )
+
+                # ---------------- Methods ----------------
+                elif (
+                    "(" in line
+                    and ")" in line
+                    and line.endswith("{")
+                    and "class" not in line
+                ):
+                    method_name = (
+                        line.split("(")[0]
+                        .split()[-1]
+                        .strip()
+                    )
+                    start_line = line_number + 1
+                    brace_count = line.count("{") - line.count("}")
+                    current_line = line_number
+
+                    while brace_count > 0:
+                        current_line += 1
+                        if current_line >= len(lines):
+                            break
+                        current = lines[current_line]
+                        brace_count += current.count("{")
+                        brace_count -= current.count("}")
+
+                    end_line = current_line + 1
+                    methods.append(
+                        MethodInfo(
+                            name=method_name,
+                            start_line=start_line,
+                            end_line=end_line,
                         )
+                    )
+                    line_number = current_line
 
-                    elif line.startswith("import "):
-                        imports.append(
-                            line.replace("import ", "")
-                            .replace(";", "")
-                        )
-
-                    elif " class " in line:
-                        class_name = (
-                            line.split("class")[1]
-                            .split("{")[0]
-                            .strip()
-                        )
-
-                    elif (
-                        "(" in line
-                        and ")" in line
-                        and line.endswith("{")
-                        and "class" not in line
-                    ):
-
-                        method_name = (
-                            line.split("(")[0]
-                            .split()[-1]
-                            .strip()
-                        )
-
-                        methods.append(
-                            MethodInfo(
-                                name=method_name,
-                                start_line=line_number,
-                                end_line=line_number,  # Temporary
-                            )
-                        )
+                line_number += 1
 
         except FileNotFoundError:
-
             logger.error(f"File not found: {path}")
-
             raise
 
         logger.info(f"Successfully parsed {path.name}")

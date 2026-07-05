@@ -12,93 +12,108 @@ class JavaRepository:
 
     def save(self, parsed_file: ParsedJavaFile):
 
-        cursor = self.connection.cursor()
+        logger.info("Database opened")
+        logger.info("Saving metadata")
 
-        # Step 1
-        cursor.execute(
-            """
-            SELECT id
-            FROM java_files
-            WHERE file_path = ?
-            """,
-            (parsed_file.file_path,)
-        )
+        try:
+            cursor = self.connection.cursor()
 
-        existing = cursor.fetchone()
-
-        if existing:
-
-            file_id = existing[0]
-
-            # Update metadata
+            # Step 1
             cursor.execute(
                 """
-                UPDATE java_files
-                SET
-                    file_name = ?,
-                    package_name = ?,
-                    class_name = ?
-                WHERE id = ?
+                SELECT id
+                FROM java_files
+                WHERE file_path = ?
                 """,
-                (
-                    parsed_file.file_name,
-                    parsed_file.package_name,
-                    parsed_file.class_name,
-                    file_id,
-                ),
+                (parsed_file.file_path,)
             )
 
-            # Remove old methods
-            cursor.execute(
-                """
-                DELETE FROM java_methods
-                WHERE file_id = ?
-                """,
-                (file_id,),
-            )
+            existing = cursor.fetchone()
 
-        else:
+            if existing:
 
-            cursor.execute(
-                """
-                INSERT INTO java_files
-                (
-                    file_name,
-                    file_path,
-                    package_name,
-                    class_name
+                file_id = existing[0]
+                logger.warning("Duplicate metadata")
+
+                # Update metadata
+                cursor.execute(
+                    """
+                    UPDATE java_files
+                    SET
+                        file_name = ?,
+                        package_name = ?,
+                        class_name = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        parsed_file.file_name,
+                        parsed_file.package_name,
+                        parsed_file.class_name,
+                        file_id,
+                    ),
                 )
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    parsed_file.file_name,
-                    parsed_file.file_path,
-                    parsed_file.package_name,
-                    parsed_file.class_name,
-                ),
-            )
 
-            file_id = cursor.lastrowid
-
-        # Insert fresh methods
-        for method in parsed_file.methods:
-
-            cursor.execute(
-                """
-                INSERT INTO java_methods
-                (
-                    file_id,
-                    method_name
+                # Remove old methods
+                cursor.execute(
+                    """
+                    DELETE FROM java_methods
+                    WHERE file_id = ?
+                    """,
+                    (file_id,),
                 )
-                VALUES (?, ?)
-                """,
-                (
-                    file_id,
-                    method.name,
-                ),
-            )
 
-        self.connection.commit()
+            else:
+
+                cursor.execute(
+                    """
+                    INSERT INTO java_files
+                    (
+                        file_name,
+                        file_path,
+                        package_name,
+                        class_name
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        parsed_file.file_name,
+                        parsed_file.file_path,
+                        parsed_file.package_name,
+                        parsed_file.class_name,
+                    ),
+                )
+
+                file_id = cursor.lastrowid
+
+            # Insert fresh methods
+            for method in parsed_file.methods:
+
+                cursor.execute(
+                    """
+                    INSERT INTO java_methods
+                    (
+                        file_id,
+                        method_name
+                    )
+                    VALUES (?, ?)
+                    """,
+                    (
+                        file_id,
+                        method.name,
+                    ),
+                )
+
+            self.connection.commit()
+            logger.info("Commit successful")
+
+        except Exception as e:
+            logger.error("Insert failed")
+            try:
+                self.connection.rollback()
+                logger.error("Rollback executed")
+            except Exception as rollback_err:
+                logger.error(f"Rollback failed: {rollback_err}")
+            raise e
 
 
 
