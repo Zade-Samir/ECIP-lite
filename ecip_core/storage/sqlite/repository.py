@@ -94,7 +94,7 @@ class JavaRepository:
                 """,
                 (
                     file_id,
-                    method,
+                    method.name,
                 ),
             )
 

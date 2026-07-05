@@ -1,5 +1,6 @@
 
 from pydantic import BaseModel, Field
+from ecip_core.parser.models.method_info import MethodInfo
 
 
 class ParsedJavaFile(BaseModel):
@@ -12,6 +13,5 @@ class ParsedJavaFile(BaseModel):
 
     package_name: str | None = None
     imports: list[str] = Field(default_factory=list)
-
     class_name: str | None = None
-    methods: list[str] = Field(default_factory=list)
+    methods: list[MethodInfo] = Field(default_factory=list)

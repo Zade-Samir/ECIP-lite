@@ -1,12 +1,16 @@
 from pathlib import Path
 
 from ecip_core.common.logger import get_logger
+from ecip_core.parser.models.method_info import MethodInfo
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 
 logger = get_logger(__name__)
 
 
 class JavaParser:
+    """
+    Parses a Java source file and extracts metadata.
+    """
 
     def parse(self, file_path: str) -> ParsedJavaFile:
 
@@ -15,18 +19,15 @@ class JavaParser:
         package_name: str | None = None
         imports: list[str] = []
         class_name: str | None = None
-        methods: list[str] = []
+        methods: list[MethodInfo] = []
 
         logger.info(f"Parsing file: {path.name}")
 
         try:
 
-            source_code = ""
             with open(path, "r", encoding="utf-8") as file:
 
-                source_code = file.read()
-
-                for line in source_code.splitlines():
+                for line_number, line in enumerate(file, start=1):
 
                     line = line.strip()
 
@@ -62,7 +63,13 @@ class JavaParser:
                             .strip()
                         )
 
-                        methods.append(method_name)
+                        methods.append(
+                            MethodInfo(
+                                name=method_name,
+                                start_line=line_number,
+                                end_line=line_number,  # Temporary
+                            )
+                        )
 
         except FileNotFoundError:
 
@@ -75,7 +82,6 @@ class JavaParser:
         return ParsedJavaFile(
             file_name=path.name,
             file_path=str(path.resolve()),
-            source_code=source_code,
             package_name=package_name,
             imports=imports,
             class_name=class_name,
