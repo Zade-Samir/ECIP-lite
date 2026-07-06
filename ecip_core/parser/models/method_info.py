@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MethodInfo(BaseModel):
@@ -7,7 +7,10 @@ class MethodInfo(BaseModel):
     """
 
     name: str
-
+    signature: str | None = None
+    return_type: str | None = None
+    modifiers: list[str] = Field(default_factory=list)
+    annotations: list[str] = Field(default_factory=list)
+    parameters: list[str] = Field(default_factory=list)
     start_line: int
-
     end_line: int
