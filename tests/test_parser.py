@@ -72,6 +72,7 @@ class TestJavaParserAST(unittest.TestCase):
         self.assertIn("@RestController", parsed.class_annotations)
         self.assertIn("@RequestMapping", parsed.class_annotations)
         self.assertEqual(parsed.package_name, "com.example.controller")
+        self.assertEqual(parsed.imports, ["org.springframework.web.bind.annotation.*"])
         self.assertEqual(parsed.constructors, ["MyController"])
         self.assertEqual(parsed.fields, ["private final MyService service"])
         self.assertEqual(parsed.source_code, content)
@@ -247,6 +248,39 @@ class TestJavaParserAST(unittest.TestCase):
         method_names = [m.name for m in parsed.methods]
         self.assertIn("outerMethod", method_names)
         self.assertIn("innerMethod", method_names)
+
+    def test_empty_class(self):
+        content = """
+        package com.example;
+        public class Empty {}
+        """
+        filepath = self.write_temp_file(content, "Empty.java")
+        parsed = self.parser.parse(filepath)
+        self.assertEqual(parsed.class_name, "Empty")
+        self.assertEqual(len(parsed.methods), 0)
+        self.assertEqual(len(parsed.fields), 0)
+
+    def test_anonymous_class(self):
+        content = """
+        package com.example;
+        public class MyClass {
+            public void doSomething() {
+                Runnable r = new Runnable() {
+                    @Override
+                    public void run() {
+                        System.out.println("hello");
+                    }
+                };
+            }
+        }
+        """
+        filepath = self.write_temp_file(content, "MyClass.java")
+        parsed = self.parser.parse(filepath)
+        self.assertEqual(parsed.class_name, "MyClass")
+        
+        method_names = [m.name for m in parsed.methods]
+        self.assertIn("doSomething", method_names)
+        self.assertIn("run", method_names)
 
     def test_invalid_java_syntax(self):
         content = """
