@@ -7,6 +7,15 @@ from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 
 logger = get_logger(__name__)
 
+JAVA_MODIFIER_ORDER = [
+    "public", "protected", "private", "abstract", "static", "final",
+    "transient", "volatile", "synchronized", "native", "strictfp"
+]
+
+
+def sort_modifiers(modifiers) -> list[str]:
+    return sorted(list(modifiers), key=lambda m: JAVA_MODIFIER_ORDER.index(m) if m in JAVA_MODIFIER_ORDER else 999)
+
 
 def extract_annotations(node) -> list[str]:
     annotations = []
@@ -160,7 +169,7 @@ class JavaParser:
 
         # Extract fields
         for _, node in tree.filter(javalang.tree.FieldDeclaration):
-            mods = " ".join(node.modifiers)
+            mods = " ".join(sort_modifiers(node.modifiers))
             type_name = format_type(node.type)
             for dec in node.declarators:
                 field_str = f"{mods} {type_name} {dec.name}".strip()
@@ -181,7 +190,7 @@ class JavaParser:
                         break
                         
             ret_type = format_type(node.return_type)
-            mods_list = list(node.modifiers)
+            mods_list = sort_modifiers(node.modifiers)
             ann_list = extract_annotations(node)
             
             params_list = []
