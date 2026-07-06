@@ -35,9 +35,16 @@ class Database:
             file_name TEXT,
             file_path TEXT UNIQUE,
             package_name TEXT,
-            class_name TEXT
+            class_name TEXT,
+            file_hash TEXT
         );
         """)
+
+        # Dynamically add file_hash column to existing tables for migration compatibility
+        try:
+            cursor.execute("ALTER TABLE java_files ADD COLUMN file_hash TEXT;")
+        except sqlite3.OperationalError:
+            pass
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS java_methods (

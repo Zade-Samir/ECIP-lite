@@ -4,13 +4,14 @@ from ecip_core.common.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 class JavaRepository:
 
     def __init__(self):
 
         self.connection = Database().get_connection()
 
-    def save(self, parsed_file: ParsedJavaFile):
+    def save(self, parsed_file: ParsedJavaFile, file_hash: str = ""):
 
         logger.info("Database opened")
         logger.info("Saving metadata")
@@ -35,20 +36,22 @@ class JavaRepository:
                 file_id = existing[0]
                 logger.warning("Duplicate metadata")
 
-                # Update metadata
+                # Update metadata including file_hash
                 cursor.execute(
                     """
                     UPDATE java_files
                     SET
                         file_name = ?,
                         package_name = ?,
-                        class_name = ?
+                        class_name = ?,
+                        file_hash = ?
                     WHERE id = ?
                     """,
                     (
                         parsed_file.file_name,
                         parsed_file.package_name,
                         parsed_file.class_name,
+                        file_hash,
                         file_id,
                     ),
                 )
@@ -71,15 +74,17 @@ class JavaRepository:
                         file_name,
                         file_path,
                         package_name,
-                        class_name
+                        class_name,
+                        file_hash
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
                     (
                         parsed_file.file_name,
                         parsed_file.file_path,
                         parsed_file.package_name,
                         parsed_file.class_name,
+                        file_hash,
                     ),
                 )
 
@@ -107,6 +112,7 @@ class JavaRepository:
             logger.info("Commit successful")
 
         except Exception as e:
+            logger.error("Database failure")
             logger.error("Insert failed")
             try:
                 self.connection.rollback()
@@ -115,7 +121,70 @@ class JavaRepository:
                 logger.error(f"Rollback failed: {rollback_err}")
             raise e
 
+    def get_file_hash(self, file_path: str) -> str | None:
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                """
+                SELECT file_hash
+                FROM java_files
+                WHERE file_path = ?
+                """,
+                (file_path,)
+            )
+            row = cursor.fetchone()
+            return row[0] if row else None
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
 
+    def get_all_file_paths(self) -> list[str]:
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT file_path FROM java_files")
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def delete_by_file_path(self, file_path: str):
+        logger.info("File removed")
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                """
+                SELECT id
+                FROM java_files
+                WHERE file_path = ?
+                """,
+                (file_path,)
+            )
+            row = cursor.fetchone()
+            if row:
+                file_id = row[0]
+                cursor.execute(
+                    """
+                    DELETE FROM java_methods
+                    WHERE file_id = ?
+                    """,
+                    (file_id,)
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM java_files
+                    WHERE id = ?
+                    """,
+                    (file_id,)
+                )
+                self.connection.commit()
+        except Exception as e:
+            logger.error("Database failure")
+            try:
+                self.connection.rollback()
+            except Exception:
+                pass
+            raise e
 
     def get_all_files(self) -> list[dict]:
 
@@ -141,8 +210,6 @@ class JavaRepository:
             }
             for row in rows
         ]
-    
-
 
     def find_by_class_name(
             self,
@@ -176,8 +243,6 @@ class JavaRepository:
             "class_name": row[4],
         }
 
-
-
     def find_methods(
             self,
             class_name: str
@@ -205,7 +270,6 @@ class JavaRepository:
             row[0]
             for row in rows
         ]
-
 
     def find_file_by_method(
             self,

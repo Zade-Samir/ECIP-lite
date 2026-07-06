@@ -3,9 +3,12 @@ import tempfile
 import shutil
 import logging
 import json
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 from ecip_core.indexing.index_builder import IndexBuilder
+from ecip_core.embedding.models.embedding import Embedding
 
 class LogCaptureHandler(logging.Handler):
     def __init__(self):
@@ -15,9 +18,6 @@ class LogCaptureHandler(logging.Handler):
     def emit(self, record):
         self.records.append((record.levelname, record.getMessage()))
 
-
-from unittest.mock import patch
-from ecip_core.embedding.models.embedding import Embedding
 
 class TestIndexBuilder(unittest.TestCase):
 
@@ -29,6 +29,8 @@ class TestIndexBuilder(unittest.TestCase):
         self.log_handler = LogCaptureHandler()
         self.log_handler.setLevel(logging.DEBUG)
         logging.getLogger("ecip_core.indexing.index_builder").addHandler(self.log_handler)
+        logging.getLogger("ecip_core.vectorstore.faiss_store").addHandler(self.log_handler)
+        logging.getLogger("ecip_core.storage.sqlite.repository").addHandler(self.log_handler)
         self.log_capture = self.log_handler.records
         
         # Patch EmbeddingService.generate to return fake vectors
@@ -46,6 +48,8 @@ class TestIndexBuilder(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir)
         logging.getLogger("ecip_core.indexing.index_builder").removeHandler(self.log_handler)
+        logging.getLogger("ecip_core.vectorstore.faiss_store").removeHandler(self.log_handler)
+        logging.getLogger("ecip_core.storage.sqlite.repository").removeHandler(self.log_handler)
         self.embedding_patch.stop()
 
     def write_temp_file(self, content: str, filename: str) -> str:
@@ -54,96 +58,69 @@ class TestIndexBuilder(unittest.TestCase):
             f.write(content)
         return str(filepath)
 
-    def test_incremental_indexing(self):
-        # 1. Write initial project code
-        content = """
-        package com.example;
-        public class MyService {
-            public void test1() {
-                System.out.println("Hello 1");
-            }
-            public void test2() {
-                System.out.println("Hello 2");
-            }
-        }
-        """
-        filepath = self.write_temp_file(content, "MyService.java")
+    def test_incremental_indexing_full_pipeline(self):
+        # Setup two files
+        content_a = "package com.example; public class ServiceA {}"
+        content_b = "package com.example; public class ServiceB {}"
         
-        # First index run
+        path_a = self.write_temp_file(content_a, "ServiceA.java")
+        path_b = self.write_temp_file(content_b, "ServiceB.java")
+        
+        # 1. First run indexes all files (Cold start)
+        self.log_capture.clear()
         self.builder.build(self.test_dir)
         
-        # Verify cache file exists
-        cache_file = Path(self.test_dir) / ".ecip_chunk_cache.json"
-        self.assertTrue(cache_file.exists())
-        with open(cache_file, "r") as f:
-            cache1 = json.load(f)
-            
-        # Log assertions for first run (should generate hashes since cache was empty)
         log_msgs_1 = [msg for level, msg in self.log_capture]
-        self.assertTrue(any("Chunk hash generated" in msg for msg in log_msgs_1))
+        self.assertTrue(any("Index started" in msg for msg in log_msgs_1))
+        self.assertTrue(any("File indexed: ServiceA.java" in msg for msg in log_msgs_1))
+        self.assertTrue(any("File indexed: ServiceB.java" in msg for msg in log_msgs_1))
+        self.assertTrue(any("Total duration" in msg for msg in log_msgs_1))
         
-        # Clear logs
+        # Verify both exist in SQLite DB
+        paths_in_db = self.builder.repository.get_all_file_paths()
+        self.assertIn(str(Path(path_a).resolve()), paths_in_db)
+        self.assertIn(str(Path(path_b).resolve()), paths_in_db)
+        
+        # 2. Second run skips unchanged files
         self.log_capture.clear()
+        builder2 = IndexBuilder()
+        builder2.build(self.test_dir)
         
-        # Second run (No changes)
-        self.builder.build(self.test_dir)
-        with open(cache_file, "r") as f:
-            cache2 = json.load(f)
-            
-        # Assert same hashes
-        self.assertEqual(cache1, cache2)
-        
-        # Log assertions for second run (should find unchanged hashes)
         log_msgs_2 = [msg for level, msg in self.log_capture]
-        self.assertTrue(any("Hash unchanged" in msg for msg in log_msgs_2))
-        self.assertFalse(any("Hash changed" in msg for msg in log_msgs_2))
+        self.assertTrue(any("File skipped: ServiceA.java" in msg for msg in log_msgs_2))
+        self.assertTrue(any("File skipped: ServiceB.java" in msg for msg in log_msgs_2))
+        self.assertFalse(any("File indexed:" in msg for msg in log_msgs_2))
         
-        # Clear logs
+        # 3. Modify one file (ServiceA)
         self.log_capture.clear()
+        content_a_modified = "package com.example; public class ServiceA { public void run() {} }"
+        with open(path_a, "w", encoding="utf-8") as f:
+            f.write(content_a_modified)
+            
+        builder3 = IndexBuilder()
+        builder3.build(self.test_dir)
         
-        # 3. Modify only one method (test1)
-        modified_content = """
-        package com.example;
-        public class MyService {
-            public void test1() {
-                System.out.println("Hello 1 MODIFIED!");
-            }
-            public void test2() {
-                System.out.println("Hello 2");
-            }
-        }
-        """
-        # Overwrite file
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(modified_content)
-            
-        # Third run (1 changed method)
-        self.builder.build(self.test_dir)
-        with open(cache_file, "r") as f:
-            cache3 = json.load(f)
-            
-        # Log assertions for third run (should log Hash changed)
         log_msgs_3 = [msg for level, msg in self.log_capture]
-        self.assertTrue(any("Hash changed" in msg for msg in log_msgs_3))
+        self.assertTrue(any("File indexed: ServiceA.java" in msg for msg in log_msgs_3))
+        self.assertTrue(any("File skipped: ServiceB.java" in msg for msg in log_msgs_3))
+        self.assertTrue(any("Stale vector cleaned" in msg for msg in log_msgs_3))
         
-        # Verify ONLY test1 and overview hash changed (since overview public method list changed too).
-        # But test2 hash MUST remain identical!
-        # Find chunk IDs
-        test1_id = None
-        test2_id = None
-        for cid, val in cache1.items():
-            if val.get("method_name") == "test1":
-                test1_id = cid
-            elif val.get("method_name") == "test2":
-                test2_id = cid
-                
-        self.assertIsNotNone(test1_id)
-        self.assertIsNotNone(test2_id)
+        # 4. Delete one file (ServiceB)
+        self.log_capture.clear()
+        os.remove(path_b)
         
-        # test1 hash changed
-        self.assertNotEqual(cache1[test1_id]["content_hash"], cache3[test1_id]["content_hash"])
-        # test2 hash unchanged
-        self.assertEqual(cache1[test2_id]["content_hash"], cache3[test2_id]["content_hash"])
+        builder4 = IndexBuilder()
+        builder4.build(self.test_dir)
+        
+        log_msgs_4 = [msg for level, msg in self.log_capture]
+        self.assertTrue(any("File removed" in msg for msg in log_msgs_4))
+        self.assertTrue(any("Stale vector cleaned" in msg for msg in log_msgs_4))
+        self.assertTrue(any("File skipped: ServiceA.java" in msg for msg in log_msgs_4))
+        
+        # Verify ServiceB is removed from SQLite DB
+        paths_in_db_after_delete = self.builder.repository.get_all_file_paths()
+        self.assertNotIn(str(Path(path_b).resolve()), paths_in_db_after_delete)
+        self.assertIn(str(Path(path_a).resolve()), paths_in_db_after_delete)
 
 
 if __name__ == "__main__":

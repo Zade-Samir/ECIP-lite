@@ -1,4 +1,6 @@
 import json
+import hashlib
+import time
 from pathlib import Path
 from ecip_core.scanner.project_scanner import ProjectScanner
 from ecip_core.parser.java.java_parser import JavaParser
@@ -28,7 +30,15 @@ class IndexBuilder:
         self.faiss_store = FAISSStore()
 
     def build(self, project_path: str) -> FAISSStore:
-        java_files = self.scanner.scan(project_path)
+        start_time = time.perf_counter()
+        logger.info("Index started")
+
+        try:
+            java_files = self.scanner.scan(project_path)
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
         logger.info(f"Found {len(java_files)} Java files")
 
         # Load previous hashes/embeddings cache from .ecip_chunk_cache.json if exists
@@ -44,55 +54,103 @@ class IndexBuilder:
 
         new_cache = {}
 
+        stats = {
+            "skipped": 0,
+            "indexed": 0,
+            "removed": 0
+        }
+
+        # 1. Identify active file paths and calculate current hashes
+        active_files = {}
         for file in java_files:
-            logger.info(f"Indexing {file.name}")
+            file_path_str = str(file.resolve())
+            try:
+                with open(file, "rb") as f:
+                    curr_hash = hashlib.sha256(f.read()).hexdigest()
+                active_files[file_path_str] = curr_hash
+            except Exception as e:
+                logger.error("Hash failure")
+                raise e
 
-            # ---------- Metadata ----------
-            parsed = self.parser.parse(str(file))
-            self.repository.save(parsed)
+        # 2. Clean up deleted files from SQLite and FAISS
+        try:
+            db_file_paths = self.repository.get_all_file_paths()
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
 
-            # ---------- Semantic ----------
-            chunks = self.chunker.chunk(str(file))
+        deleted_file_paths = [p for p in db_file_paths if p not in active_files]
+        for p in deleted_file_paths:
+            self.repository.delete_by_file_path(p)
+            self.faiss_store.remove_file(p)
+            stats["removed"] += 1
 
-            for chunk in chunks:
-                chunk_id = chunk.chunk_id
-                content_hash = chunk.content_hash
+        # 3. Process active files
+        for file in java_files:
+            file_path_str = str(file.resolve())
+            curr_hash = active_files[file_path_str]
 
-                # Check if hash has changed
-                cached_data = cache.get(chunk_id)
-                if cached_data and cached_data.get("content_hash") == content_hash:
-                    logger.info("Hash unchanged")
-                    vector = cached_data["vector"]
-                    embedding = Embedding(
-                        file_name=chunk.file_name,
-                        class_name=chunk.class_name,
-                        method_name=chunk.method_name or "",
-                        source_code=chunk.source_code,
-                        vector=vector
-                    )
-                    self.faiss_store.add(embedding)
+            # Get stored hash from database
+            stored_hash = self.repository.get_file_hash(file_path_str)
 
-                    # Carry over to new cache
-                    new_cache[chunk_id] = {
-                        "content_hash": content_hash,
-                        "vector": vector,
-                        "method_name": chunk.method_name
-                    }
-                else:
-                    if cached_data:
-                        logger.info("Hash changed")
-                    else:
-                        logger.info("Chunk hash generated")
+            if stored_hash == curr_hash:
+                logger.info(f"File skipped: {file.name}")
+                stats["skipped"] += 1
+
+                # Carry over unchanged cache entries and add to FAISS index
+                for chunk_id, cached_val in cache.items():
+                    if cached_val.get("file_path") == file_path_str:
+                        new_cache[chunk_id] = cached_val
+                        vector = cached_val["vector"]
+                        embedding = Embedding(
+                            file_name=cached_val.get("file_name", file.name),
+                            class_name=cached_val.get("class_name", "Unknown"),
+                            method_name=cached_val.get("method_name") or "",
+                            source_code=cached_val.get("source_code", ""),
+                            vector=vector
+                        )
+                        self.faiss_store.add(embedding)
+            else:
+                logger.info(f"File indexed: {file.name}")
+                stats["indexed"] += 1
+
+                # If this is a modified file, remove its stale vectors first
+                if stored_hash:
+                    self.faiss_store.remove_file(file_path_str)
+
+                # Re-parse changed file
+                try:
+                    parsed = self.parser.parse(file_path_str)
+                except Exception as e:
+                    logger.error("Database failure")
+                    raise e
+
+                # Save metadata and file_hash in database
+                self.repository.save(parsed, file_hash=curr_hash)
+
+                # Re-chunk changed file
+                try:
+                    chunks = self.chunker.chunk(file_path_str)
+                except Exception as e:
+                    logger.error("FAISS update failure")
+                    raise e
+
+                for chunk in chunks:
+                    chunk_id = chunk.chunk_id
+                    content_hash = chunk.content_hash
 
                     # Generate fresh embedding
                     embedding = self.embedding_service.generate(chunk)
                     self.faiss_store.add(embedding)
 
-                    # Save to new cache
                     new_cache[chunk_id] = {
                         "content_hash": content_hash,
                         "vector": embedding.vector,
-                        "method_name": chunk.method_name
+                        "method_name": chunk.method_name,
+                        "file_path": file_path_str,
+                        "file_name": chunk.file_name,
+                        "class_name": chunk.class_name,
+                        "source_code": chunk.source_code
                     }
 
         # Persist new cache for next index build
@@ -102,5 +160,14 @@ class IndexBuilder:
         except Exception as e:
             logger.warning(f"Failed to write incremental cache: {e}")
 
-        logger.info("Project indexing completed.")
+        duration = time.perf_counter() - start_time
+        logger.info(f"Total duration: {duration:.4f}s")
+
+        # Summary report
+        print(f"\n--- Indexing Summary Report ---")
+        print(f"Files Skipped:  {stats['skipped']}")
+        print(f"Files Indexed:  {stats['indexed']}")
+        print(f"Files Removed:  {stats['removed']}")
+        print(f"Total Duration: {duration:.4f}s\n")
+
         return self.faiss_store
