@@ -9,6 +9,7 @@ class CodeChunk(BaseModel):
     chunk_id: str
     project_id: str
     file_path: str
+    file_name: str  # Kept for backward compatibility with embedding services
     class_name: str
     method_name: str | None = None
     chunk_type: str  # "CLASS_OVERVIEW" or "METHOD"

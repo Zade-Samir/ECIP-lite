@@ -94,7 +94,8 @@ class TestJavaChunker(unittest.TestCase):
             self.assertIsNone(c.created_at)
             
             # Content Hash correctness
-            expected_hash = hashlib.sha256(c.content.encode("utf-8")).hexdigest()
+            from ecip_core.chunking.java_chunker import normalize_content
+            expected_hash = hashlib.sha256(normalize_content(c.content).encode("utf-8")).hexdigest()
             self.assertEqual(c.content_hash, expected_hash)
             
             # Serialization verification
@@ -197,6 +198,62 @@ class TestJavaChunker(unittest.TestCase):
         # Verify that consecutive blank lines were collapsed
         # Total blank lines between test() and test2() should be collapsed
         self.assertNotIn("\n\n\n\n", test_method.content)
+
+
+    def test_hash_normalization_comments_and_whitespace(self):
+        # 1. Base Class Content
+        content1 = """
+        package com.example;
+        public class MyService {
+            // This is a comment
+            public void execute() {
+                /* block comment */
+                System.out.println("Executing...");
+            }
+        }
+        """
+        
+        # 2. Content with whitespace changes and modified comments
+        content2 = """
+        package com.example;
+        public class MyService {
+            
+            // This is a DIFFERENT comment!
+            public void execute() {
+                
+                System.out.println("Executing...");   
+                
+            }
+        }
+        """
+        
+        # 3. Content with actual semantic code change
+        content3 = """
+        package com.example;
+        public class MyService {
+            public void execute() {
+                System.out.println("Executing DIFFERENT code...");
+            }
+        }
+        """
+        
+        path1 = self.write_temp_file(content1, "MyService1.java")
+        path2 = self.write_temp_file(content2, "MyService2.java")
+        path3 = self.write_temp_file(content3, "MyService3.java")
+        
+        chunks1 = self.chunker.chunk(path1)
+        chunks2 = self.chunker.chunk(path2)
+        chunks3 = self.chunker.chunk(path3)
+        
+        method1 = [c for c in chunks1 if c.chunk_type == "METHOD" and c.method_name == "execute"][0]
+        method2 = [c for c in chunks2 if c.chunk_type == "METHOD" and c.method_name == "execute"][0]
+        method3 = [c for c in chunks3 if c.chunk_type == "METHOD" and c.method_name == "execute"][0]
+        
+        # Assert same content hash for comment/whitespace edits
+        self.assertEqual(method1.content_hash, method2.content_hash)
+        
+        # Assert different content hash for semantic changes
+        self.assertNotEqual(method1.content_hash, method3.content_hash)
 
 
 if __name__ == "__main__":

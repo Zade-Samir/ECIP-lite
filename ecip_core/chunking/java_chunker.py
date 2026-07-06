@@ -24,11 +24,29 @@ def clean_whitespace(text: str) -> str:
     Collapses multiple blank lines to a single blank line, and strips trailing spaces from lines.
     Preserves leading indentation.
     """
-    # Collapse 3 or more consecutive newlines (with optional whitespace) to exactly 2 newlines
     text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-    # Strip trailing whitespace from each line
     lines = [line.rstrip() for line in text.splitlines()]
     return "\n".join(lines)
+
+
+def normalize_content(content: str) -> str:
+    """
+    Normalizes chunk content for stable hashing:
+    - Strips Java comments (single-line and block comments)
+    - Collapses all whitespaces to a single space
+    - Converts to lowercase
+    """
+    # 1. Remove block comments
+    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+    # 2. Remove single line comments
+    lines = []
+    for line in content.splitlines():
+        line = re.sub(r'//.*$', '', line)
+        lines.append(line)
+    content = "\n".join(lines)
+    # 3. Collapse whitespace and lowercase
+    content = re.sub(r'\s+', ' ', content).strip().lower()
+    return content
 
 
 def build_class_overview(parsed) -> str:
@@ -65,7 +83,6 @@ def build_class_overview(parsed) -> str:
     lines.append("\nPublic Methods:")
     public_methods = []
     for m in parsed.methods:
-        # Public by default unless private or protected
         if "public" in m.modifiers or not any(x in m.modifiers for x in ["private", "protected"]):
             public_methods.append(m)
             
@@ -121,37 +138,46 @@ class JavaChunker:
             if not overview_content.strip():
                 logger.warning("Empty overview")
                 
-            # Check for Empty Class
             if not parsed.methods and not parsed.fields and not parsed.constructors:
                 logger.warning("Empty class")
                 
-            o_hash = compute_hash(overview_content)
-            o_id = compute_chunk_id(project_id, file_path, class_name, None, "CLASS_OVERVIEW")
-            
-            chunks.append(
-                CodeChunk(
-                    chunk_id=o_id,
-                    project_id=project_id,
-                    file_path=str(Path(file_path).resolve()),
-                    class_name=class_name,
-                    method_name=None,
-                    chunk_type="CLASS_OVERVIEW",
-                    content=overview_content,
-                    source_code=overview_content,
-                    start_line=1,
-                    end_line=len(lines) if lines else 1,
-                    content_hash=o_hash
+            normalized = normalize_content(overview_content)
+            if not normalized.strip():
+                logger.warning("Empty chunk skipped")
+            else:
+                try:
+                    o_hash = compute_hash(normalized)
+                    logger.info("Chunk hash generated")
+                except Exception as e:
+                    logger.error("Hash generation failure")
+                    raise e
+                    
+                o_id = compute_chunk_id(project_id, file_path, class_name, None, "CLASS_OVERVIEW")
+                
+                chunks.append(
+                    CodeChunk(
+                        chunk_id=o_id,
+                        project_id=project_id,
+                        file_path=str(Path(file_path).resolve()),
+                        file_name=Path(file_path).name,
+                        class_name=class_name,
+                        method_name=None,
+                        chunk_type="CLASS_OVERVIEW",
+                        content=overview_content,
+                        source_code=overview_content,
+                        start_line=1,
+                        end_line=len(lines) if lines else 1,
+                        content_hash=o_hash
+                    )
                 )
-            )
-            logger.info("Overview chunk generated")
-            logger.info("Overview chunk created")
+                logger.info("Overview chunk generated")
+                logger.info("Overview chunk created")
         else:
             logger.warning("Empty overview")
             logger.warning("Empty class")
 
         # 2. Generate Chunks for each Method
         for method in parsed.methods:
-            # Validate line range
             if method.start_line < 1 or method.end_line > len(lines) or method.start_line > method.end_line:
                 logger.error("Invalid chunk")
                 logger.error("Chunk generation failure")
@@ -160,11 +186,21 @@ class JavaChunker:
             source = "".join(lines[method.start_line - 1 : method.end_line])
             source = clean_whitespace(source)
             
-            # Check for Empty Method Body
-            if not source.strip() or ("{" not in source and "}" not in source):
+            normalized = normalize_content(source)
+            if not normalized.strip():
+                logger.warning("Empty chunk skipped")
+                continue
+                
+            if "{" not in source and "}" not in source:
                 logger.warning("Empty method body")
 
-            m_hash = compute_hash(source)
+            try:
+                m_hash = compute_hash(normalized)
+                logger.info("Chunk hash generated")
+            except Exception as e:
+                logger.error("Hash generation failure")
+                raise e
+
             m_id = compute_chunk_id(project_id, file_path, class_name, method.name, "METHOD")
 
             chunks.append(
@@ -172,6 +208,7 @@ class JavaChunker:
                     chunk_id=m_id,
                     project_id=project_id,
                     file_path=str(Path(file_path).resolve()),
+                    file_name=Path(file_path).name,
                     class_name=class_name,
                     method_name=method.name,
                     chunk_type="METHOD",
@@ -186,16 +223,13 @@ class JavaChunker:
 
         # 3. Chunk Validation
         for c in chunks:
-            # Check for empty content or invalid boundaries
             if not c.chunk_id or not c.content or c.start_line > c.end_line:
                 logger.error("Invalid chunk")
                 raise ValueError("Invalid chunk details")
                 
-            # Missing metadata warning check
             if not c.project_id or not c.file_path or not c.class_name or not c.content_hash:
                 logger.warning("Missing metadata")
                 
-            # Serialization check
             try:
                 c.model_dump_json()
             except Exception as e:
