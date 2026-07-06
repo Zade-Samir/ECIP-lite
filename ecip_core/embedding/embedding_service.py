@@ -38,6 +38,11 @@ class EmbeddingService:
             method_name=chunk.method_name or "",
             source_code=chunk.source_code,
             vector=vector,
+            chunk_id=chunk.chunk_id,
+            file_path=chunk.file_path,
+            chunk_type=chunk.chunk_type,
+            start_line=chunk.start_line,
+            end_line=chunk.end_line,
         )
 
     def embed_question(self, question: str) -> list[float]:
@@ -108,6 +113,11 @@ class EmbeddingService:
                         method_name=chunk.method_name or "",
                         source_code=chunk.source_code,
                         vector=vector,
+                        chunk_id=chunk.chunk_id,
+                        file_path=chunk.file_path,
+                        chunk_type=chunk.chunk_type,
+                        start_line=chunk.start_line,
+                        end_line=chunk.end_line,
                     )
                 )
 

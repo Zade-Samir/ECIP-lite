@@ -68,6 +68,28 @@ class FAISSStore:
         logger.info(f"Search completed: {len(results)} results")
         return results
 
+    def search_with_scores(self, vector: list[float], k: int = 3) -> list[tuple[Embedding, float]]:
+        """Search and return both the matched embeddings and their corresponding distances."""
+        self._validate_dimension(vector, context="search_with_scores")
+
+        if self.index.ntotal == 0:
+            return []
+
+        query = np.array([vector], dtype="float32")
+        distances, indices = self.index.search(query, min(k, self.index.ntotal))
+
+        results: list[tuple[Embedding, float]] = []
+        for dist, idx in zip(distances[0], indices[0]):
+            if idx == -1:
+                continue
+            if idx >= len(self.metadata):
+                logger.warning("Missing metadata")
+                continue
+            results.append((self.metadata[idx], float(dist)))
+
+        logger.info(f"Search completed: {len(results)} results with scores")
+        return results
+
     def remove_file(self, file_path: str) -> None:
         """Remove all vectors belonging to a file and rebuild the index."""
         try:
@@ -128,6 +150,11 @@ class FAISSStore:
                     "method_name": e.method_name,
                     "source_code": e.source_code,
                     "vector": e.vector,
+                    "chunk_id": e.chunk_id,
+                    "file_path": e.file_path,
+                    "chunk_type": e.chunk_type,
+                    "start_line": e.start_line,
+                    "end_line": e.end_line,
                 }
                 for e in self.metadata
             ]
@@ -160,6 +187,11 @@ class FAISSStore:
                     method_name=item["method_name"],
                     source_code=item["source_code"],
                     vector=item["vector"],
+                    chunk_id=item.get("chunk_id"),
+                    file_path=item.get("file_path"),
+                    chunk_type=item.get("chunk_type"),
+                    start_line=item.get("start_line"),
+                    end_line=item.get("end_line"),
                 )
                 for item in raw
             ]
