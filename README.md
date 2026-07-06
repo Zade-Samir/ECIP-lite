@@ -281,7 +281,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 **Samir Zade**
 Building ECIP Lite as part of my #BuildInPublic journey.
 
-Follow the progress on [LinkedIn](https://www.linkedin.com/in/samirzade)
+Follow the progress on [LinkedIn](https://www.linkedin.com/in/samir-zade/)
 
 ---
 
