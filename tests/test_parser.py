@@ -309,6 +309,7 @@ class TestJavaParserAST(unittest.TestCase):
 
     def test_integration_against_sample_project(self):
         # Validate that we can parse the real UserService.java, UserController.java, UserRepository.java
+        parsed_files = {}
         for filename in ["UserService.java", "UserController.java", "UserRepository.java"]:
             path = f"projects/sampleProject/{filename}"
             parsed = self.parser.parse(path)
@@ -316,6 +317,40 @@ class TestJavaParserAST(unittest.TestCase):
             self.assertEqual(parsed.file_name, filename)
             self.assertIsNotNone(parsed.class_name)
             self.assertTrue(len(parsed.methods) > 0)
+            parsed_files[filename] = parsed
+            
+        # UserController assertions
+        controller = parsed_files["UserController.java"]
+        self.assertEqual(controller.class_name, "UserController")
+        self.assertIn("@RestController", controller.class_annotations)
+        self.assertIn("@RequestMapping", controller.class_annotations)
+        
+        # Verify method mapping annotations
+        methods_map = {m.name: m for m in controller.methods}
+        self.assertIn("getAllUsers", methods_map)
+        self.assertIn("@GetMapping", methods_map["getAllUsers"].annotations)
+        self.assertIn("getUser", methods_map)
+        self.assertIn("@GetMapping", methods_map["getUser"].annotations)
+        
+        # Verify dependencies
+        self.assertEqual(len(controller.dependencies), 1)
+        self.assertEqual(controller.dependencies[0].source_class, "UserController")
+        self.assertEqual(controller.dependencies[0].target_class, "UserService")
+        self.assertEqual(controller.dependencies[0].injection_type, "FIELD")
+        
+        # UserService assertions
+        service = parsed_files["UserService.java"]
+        self.assertEqual(service.class_name, "UserService")
+        self.assertIn("@Service", service.class_annotations)
+        self.assertEqual(len(service.dependencies), 1)
+        self.assertEqual(service.dependencies[0].source_class, "UserService")
+        self.assertEqual(service.dependencies[0].target_class, "UserRepository")
+        self.assertEqual(service.dependencies[0].injection_type, "FIELD")
+        
+        # UserRepository assertions
+        repository = parsed_files["UserRepository.java"]
+        self.assertEqual(repository.class_name, "UserRepository")
+        self.assertIn("@Repository", repository.class_annotations)
 
     def test_serialization_support(self):
         content = """
@@ -360,6 +395,84 @@ class TestJavaParserAST(unittest.TestCase):
         json_data = parsed.model_dump_json()
         self.assertIn('"class_name":"User"', json_data)
         self.assertIn('"throws":["IOException","SQLException"]', json_data)
+
+    def test_dependency_and_annotation_features(self):
+        content = """
+        package com.example.service;
+        
+        @Service
+        @Transactional
+        public class MyService {
+            
+            @Autowired
+            private UserRepository userRepo;
+            
+            @Value("${app.config.value}")
+            private String configValue;
+            
+            // Unsupported/custom annotation to trigger warning
+            @CustomAnnotation
+            private int status;
+            
+            public MyService(EmailService emailService, AuditLogRepository auditRepo) {
+                // constructor injection
+            }
+        }
+        """
+        filepath = self.write_temp_file(content, "MyService.java")
+        parsed = self.parser.parse(filepath)
+        
+        # Verify class annotations
+        self.assertIn("@Service", parsed.class_annotations)
+        self.assertIn("@Transactional", parsed.class_annotations)
+        
+        # Verify fields and their annotations
+        field_map = {f.name: f for f in parsed.fields}
+        self.assertIn("userRepo", field_map)
+        self.assertIn("@Autowired", field_map["userRepo"].annotations)
+        
+        self.assertIn("configValue", field_map)
+        self.assertIn("@Value", field_map["configValue"].annotations)
+        
+        self.assertIn("status", field_map)
+        self.assertIn("@CustomAnnotation", field_map["status"].annotations)
+        
+        # Verify constructor details
+        self.assertEqual(len(parsed.constructors), 1)
+        c = parsed.constructors[0]
+        self.assertEqual(c.injected_dependency_types, ["EmailService", "AuditLogRepository"])
+        self.assertEqual(c.start_line, 18)
+        self.assertEqual(c.end_line, 20)
+        
+        # Verify dependency metadata
+        self.assertEqual(len(parsed.dependencies), 4)
+        
+        # We expect two CONSTRUCTOR dependencies and two FIELD dependencies
+        constructor_deps = [d for d in parsed.dependencies if d.injection_type == "CONSTRUCTOR"]
+        field_deps = [d for d in parsed.dependencies if d.injection_type == "FIELD"]
+        
+        self.assertEqual(len(constructor_deps), 2)
+        self.assertEqual(len(field_deps), 2)
+        
+        # Verify constructor dependencies detail
+        dep_email = [d for d in constructor_deps if d.target_class == "EmailService"][0]
+        self.assertEqual(dep_email.source_class, "MyService")
+        self.assertEqual(dep_email.parameter_name, "emailService")
+        
+        dep_audit = [d for d in constructor_deps if d.target_class == "AuditLogRepository"][0]
+        self.assertEqual(dep_audit.source_class, "MyService")
+        self.assertEqual(dep_audit.parameter_name, "auditRepo")
+        
+        # Verify field dependencies detail
+        field_targets = [d.target_class for d in field_deps]
+        self.assertIn("UserRepository", field_targets)
+        self.assertIn("String", field_targets)
+        
+        # Verify unsupported annotation log warning
+        log_msgs = [msg for level, msg in self.log_capture]
+        self.assertIn("Unsupported annotation: @CustomAnnotation", log_msgs)
+        self.assertIn("Dependency discovered", log_msgs)
+        self.assertIn("Constructor parsed", log_msgs)
 
 
 if __name__ == "__main__":

@@ -6,15 +6,27 @@ from ecip_core.parser.models.method_info import MethodInfo
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 from ecip_core.parser.models.field_info import FieldInfo
 from ecip_core.parser.models.constructor_info import ConstructorInfo
+from ecip_core.parser.models.dependency_metadata import DependencyMetadata
 
 logger = get_logger(__name__)
+
+SUPPORTED_ANNOTATIONS = {
+    "@RestController", "@Controller", "@Service", "@Repository", "@Component", "@Configuration", "@Entity", "@Table",
+    "@GetMapping", "@PostMapping", "@PutMapping", "@DeleteMapping", "@PatchMapping", "@RequestMapping", "@Transactional",
+    "@Id", "@Column", "@Autowired", "@Value"
+}
 
 
 def extract_annotations(node) -> list[str]:
     annotations = []
     if hasattr(node, 'annotations') and node.annotations:
         for ann in node.annotations:
-            annotations.append(f"@{ann.name}")
+            name = f"@{ann.name}"
+            if name in SUPPORTED_ANNOTATIONS:
+                logger.info("Annotation extracted")
+            else:
+                logger.warning(f"Unsupported annotation: {name}")
+            annotations.append(name)
     return annotations
 
 
@@ -85,6 +97,7 @@ class JavaParser:
         except FileNotFoundError as e:
             logger.error("Parser failure")
             logger.error("Mapping failure")
+            logger.error("AST mapping failure")
             logger.error(f"File skipped: {path}")
             raise e
 
@@ -96,11 +109,13 @@ class JavaParser:
         except javalang.parser.JavaSyntaxError as e:
             logger.error("Syntax error")
             logger.error("Mapping failure")
+            logger.error("AST mapping failure")
             logger.error(f"File skipped: {path}")
             raise e
         except Exception as e:
             logger.error("Parser failure")
             logger.error("Mapping failure")
+            logger.error("AST mapping failure")
             logger.error(f"File skipped: {path}")
             raise e
 
@@ -149,6 +164,7 @@ class JavaParser:
             implemented_interfaces = []
             constructors = []
             fields = []
+            dependencies = []
 
             if primary_class:
                 class_name = primary_class.name
@@ -180,18 +196,29 @@ class JavaParser:
 
             # Extract constructors
             for _, node in tree.filter(javalang.tree.ConstructorDeclaration):
+                start_line = node.position.line if node.position else 1
+                end_line = find_end_line(lines, start_line)
+                
                 mods = sort_modifiers(node.modifiers)
                 anns = extract_annotations(node)
                 params = []
+                injected_deps = []
                 for p in node.parameters:
-                    params.append(f"{format_type(p.type)} {p.name}")
+                    param_type = format_type(p.type)
+                    params.append(f"{param_type} {p.name}")
+                    injected_deps.append(param_type)
+                
                 constructors.append(
                     ConstructorInfo(
                         parameters=params,
                         annotations=anns,
-                        modifiers=mods
+                        modifiers=mods,
+                        start_line=start_line,
+                        end_line=end_line,
+                        injected_dependency_types=injected_deps
                     )
                 )
+                logger.info("Constructor parsed")
 
             # Extract fields
             for _, node in tree.filter(javalang.tree.FieldDeclaration):
@@ -255,6 +282,38 @@ class JavaParser:
 
             logger.info("Methods extracted")
             
+            # Extract dependencies
+            if class_name:
+                # 1. Constructor dependencies
+                for c in constructors:
+                    for p in c.parameters:
+                        parts = p.split()
+                        if len(parts) >= 2:
+                            target_type = parts[0]
+                            param_name = parts[1]
+                            dependencies.append(
+                                DependencyMetadata(
+                                    source_class=class_name,
+                                    target_class=target_type,
+                                    injection_type="CONSTRUCTOR",
+                                    parameter_name=param_name
+                                )
+                            )
+                            logger.info("Dependency discovered")
+                            
+                # 2. Field dependencies
+                for f in fields:
+                    if "@Autowired" in f.annotations or "@Value" in f.annotations:
+                        dependencies.append(
+                            DependencyMetadata(
+                                source_class=class_name,
+                                target_class=f.type,
+                                injection_type="FIELD",
+                                parameter_name=None
+                            )
+                        )
+                        logger.info("Dependency discovered")
+
             # Check for record types or other unsupported type constructs
             if tree.types and not primary_class:
                 logger.warning(f"Unsupported construct: {type(tree.types[0]).__name__}")
@@ -276,10 +335,12 @@ class JavaParser:
                 constructors=constructors,
                 fields=fields,
                 methods=methods,
+                dependencies=dependencies,
                 source_code=source_code
             )
 
         except Exception as e:
+            logger.error("AST mapping failure")
             logger.error("Mapping failure")
             logger.error(f"Parser failure: {e}")
             raise e
