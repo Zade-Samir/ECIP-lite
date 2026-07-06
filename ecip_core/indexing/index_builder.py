@@ -1,4 +1,3 @@
-import json
 import hashlib
 import time
 from pathlib import Path
@@ -19,6 +18,7 @@ logger = get_logger(__name__)
 class IndexBuilder:
     """
     Builds the ECIP knowledge index for an entire project.
+    Uses persistent FAISS index stored inside the project's .ecip/ directory.
     """
 
     def __init__(self):
@@ -27,11 +27,22 @@ class IndexBuilder:
         self.repository = JavaRepository()
         self.chunker = JavaChunker()
         self.embedding_service = EmbeddingService()
-        self.faiss_store = FAISSStore()
+        # FAISSStore is initialized without paths here; paths are set per build()
+        self.faiss_store: FAISSStore | None = None
 
     def build(self, project_path: str) -> FAISSStore:
         start_time = time.perf_counter()
         logger.info("Index started")
+
+        ecip_dir = Path(project_path) / ".ecip"
+        index_path = str(ecip_dir / "faiss.index")
+        metadata_path = str(ecip_dir / "faiss_metadata.json")
+
+        # Initialize (or reload) the persistent FAISS store for this project
+        self.faiss_store = FAISSStore(
+            index_path=index_path,
+            metadata_path=metadata_path,
+        )
 
         try:
             java_files = self.scanner.scan(project_path)
@@ -40,19 +51,6 @@ class IndexBuilder:
             raise e
 
         logger.info(f"Found {len(java_files)} Java files")
-
-        # Load previous hashes/embeddings cache from .ecip_chunk_cache.json if exists
-        cache_file = Path(project_path) / ".ecip_chunk_cache.json"
-        cache = {}
-        if cache_file.exists():
-            try:
-                with open(cache_file, "r", encoding="utf-8") as f:
-                    cache = json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load incremental cache: {e}")
-                cache = {}
-
-        new_cache = {}
 
         stats = {
             "skipped": 0,
@@ -98,20 +96,7 @@ class IndexBuilder:
             if stored_hash == curr_hash:
                 logger.info(f"File skipped: {file.name}")
                 stats["skipped"] += 1
-
-                # Carry over unchanged cache entries and add to FAISS index
-                for chunk_id, cached_val in cache.items():
-                    if cached_val.get("file_path") == file_path_str:
-                        new_cache[chunk_id] = cached_val
-                        vector = cached_val["vector"]
-                        embedding = Embedding(
-                            file_name=cached_val.get("file_name", file.name),
-                            class_name=cached_val.get("class_name", "Unknown"),
-                            method_name=cached_val.get("method_name") or "",
-                            source_code=cached_val.get("source_code", ""),
-                            vector=vector
-                        )
-                        self.faiss_store.add(embedding)
+                # Vectors for this file are already in the persisted FAISS index
             else:
                 logger.info(f"File indexed: {file.name}")
                 stats["indexed"] += 1
@@ -139,38 +124,26 @@ class IndexBuilder:
 
                 # Generate embeddings in batch for all chunks of this file
                 embeddings = self.embedding_service.generate_batch(chunks)
-                batch_count = max(1, (len(chunks) + self.embedding_service.batch_size - 1) // self.embedding_service.batch_size)
+                batch_count = max(
+                    1,
+                    (len(chunks) + self.embedding_service.batch_size - 1)
+                    // self.embedding_service.batch_size,
+                )
                 stats["total_chunks"] += len(chunks)
                 stats["total_batches"] += batch_count
 
-                for chunk, embedding in zip(chunks, embeddings):
+                for embedding in embeddings:
                     self.faiss_store.add(embedding)
-                    new_cache[chunk.chunk_id] = {
-                        "content_hash": chunk.content_hash,
-                        "vector": embedding.vector,
-                        "method_name": chunk.method_name,
-                        "file_path": file_path_str,
-                        "file_name": chunk.file_name,
-                        "class_name": chunk.class_name,
-                        "source_code": chunk.source_code
-                    }
-
-        # Persist new cache for next index build
-        try:
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump(new_cache, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to write incremental cache: {e}")
 
         duration = time.perf_counter() - start_time
         logger.info(f"Total duration: {duration:.4f}s")
 
         # Summary report
         print(f"\n--- Indexing Summary Report ---")
-        print(f"Files Skipped:  {stats['skipped']}")
-        print(f"Files Indexed:  {stats['indexed']}")
-        print(f"Files Removed:  {stats['removed']}")
+        print(f"Files Skipped:   {stats['skipped']}")
+        print(f"Files Indexed:   {stats['indexed']}")
+        print(f"Files Removed:   {stats['removed']}")
         print(f"Chunks Embedded: {stats['total_chunks']} (in {stats['total_batches']} batches)")
-        print(f"Total Duration: {duration:.4f}s\n")
+        print(f"Total Duration:  {duration:.4f}s\n")
 
         return self.faiss_store

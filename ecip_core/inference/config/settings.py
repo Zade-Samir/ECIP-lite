@@ -29,6 +29,10 @@ class Settings(BaseSettings):
 
     EMBEDDING_BATCH_SIZE: int = 8
 
+    FAISS_INDEX_PATH: str = ".ecip/faiss.index"
+
+    FAISS_METADATA_PATH: str = ".ecip/faiss_metadata.json"
+
     SYSTEM_PROMPT: str = (
         "You are ECIP, an expert Java and Spring Boot Architect."
     )
