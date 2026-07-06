@@ -45,12 +45,27 @@ class TestIndexBuilder(unittest.TestCase):
             vector=[0.1] * settings.EMBEDDING_DIMENSION
         )
 
+        # Also patch generate_batch (used by IndexBuilder after Prompt 012)
+        self.embedding_batch_patch = patch('ecip_core.embedding.embedding_service.EmbeddingService.generate_batch')
+        self.mock_generate_batch = self.embedding_batch_patch.start()
+        self.mock_generate_batch.side_effect = lambda chunks: [
+            Embedding(
+                file_name=chunk.file_name,
+                class_name=chunk.class_name,
+                method_name=chunk.method_name or "",
+                source_code=chunk.source_code,
+                vector=[0.1] * settings.EMBEDDING_DIMENSION
+            )
+            for chunk in chunks
+        ]
+
     def tearDown(self):
         shutil.rmtree(self.test_dir)
         logging.getLogger("ecip_core.indexing.index_builder").removeHandler(self.log_handler)
         logging.getLogger("ecip_core.vectorstore.faiss_store").removeHandler(self.log_handler)
         logging.getLogger("ecip_core.storage.sqlite.repository").removeHandler(self.log_handler)
         self.embedding_patch.stop()
+        self.embedding_batch_patch.stop()
 
     def write_temp_file(self, content: str, filename: str) -> str:
         filepath = Path(self.test_dir) / filename

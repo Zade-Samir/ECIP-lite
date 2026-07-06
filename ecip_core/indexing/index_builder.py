@@ -57,7 +57,9 @@ class IndexBuilder:
         stats = {
             "skipped": 0,
             "indexed": 0,
-            "removed": 0
+            "removed": 0,
+            "total_chunks": 0,
+            "total_batches": 0,
         }
 
         # 1. Identify active file paths and calculate current hashes
@@ -135,16 +137,16 @@ class IndexBuilder:
                     logger.error("FAISS update failure")
                     raise e
 
-                for chunk in chunks:
-                    chunk_id = chunk.chunk_id
-                    content_hash = chunk.content_hash
+                # Generate embeddings in batch for all chunks of this file
+                embeddings = self.embedding_service.generate_batch(chunks)
+                batch_count = max(1, (len(chunks) + self.embedding_service.batch_size - 1) // self.embedding_service.batch_size)
+                stats["total_chunks"] += len(chunks)
+                stats["total_batches"] += batch_count
 
-                    # Generate fresh embedding
-                    embedding = self.embedding_service.generate(chunk)
+                for chunk, embedding in zip(chunks, embeddings):
                     self.faiss_store.add(embedding)
-
-                    new_cache[chunk_id] = {
-                        "content_hash": content_hash,
+                    new_cache[chunk.chunk_id] = {
+                        "content_hash": chunk.content_hash,
                         "vector": embedding.vector,
                         "method_name": chunk.method_name,
                         "file_path": file_path_str,
@@ -168,6 +170,7 @@ class IndexBuilder:
         print(f"Files Skipped:  {stats['skipped']}")
         print(f"Files Indexed:  {stats['indexed']}")
         print(f"Files Removed:  {stats['removed']}")
+        print(f"Chunks Embedded: {stats['total_chunks']} (in {stats['total_batches']} batches)")
         print(f"Total Duration: {duration:.4f}s\n")
 
         return self.faiss_store

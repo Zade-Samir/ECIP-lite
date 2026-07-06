@@ -27,6 +27,8 @@ class Settings(BaseSettings):
 
     EMBEDDING_DIMENSION: int = 768
 
+    EMBEDDING_BATCH_SIZE: int = 8
+
     SYSTEM_PROMPT: str = (
         "You are ECIP, an expert Java and Spring Boot Architect."
     )
