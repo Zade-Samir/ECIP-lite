@@ -101,11 +101,19 @@ class JavaParser:
             logger.error(f"File skipped: {path}")
             raise e
 
+        if not source_code.strip():
+            logger.error("Parser failure")
+            logger.error("Mapping failure")
+            logger.error("AST mapping failure")
+            logger.error(f"File skipped: {path}")
+            raise ValueError("Empty file")
+
         lines = source_code.splitlines()
 
         try:
             tree = javalang.parse.parse(source_code)
             logger.info("AST created")
+            logger.info(f"File parsed: {path.name}")
         except javalang.parser.JavaSyntaxError as e:
             logger.error("Syntax error")
             logger.error("Mapping failure")
@@ -320,6 +328,7 @@ class JavaParser:
                 logger.warning("Partial metadata")
 
             logger.info("Parser mapping complete")
+            logger.info(f"Completion summary: Class {class_name} successfully parsed with {len(methods)} methods")
             logger.info("Parsing completed")
             
             return ParsedJavaFile(

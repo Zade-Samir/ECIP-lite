@@ -8,6 +8,8 @@ from pathlib import Path
 from ecip_core.parser.java.java_parser import JavaParser
 from ecip_core.parser.models.parsed_java_file import ParsedJavaFile
 
+logger = logging.getLogger(__name__)
+
 
 class TestJavaParserAST(unittest.TestCase):
 
@@ -473,6 +475,117 @@ class TestJavaParserAST(unittest.TestCase):
         self.assertIn("Unsupported annotation: @CustomAnnotation", log_msgs)
         self.assertIn("Dependency discovered", log_msgs)
         self.assertIn("Constructor parsed", log_msgs)
+
+    def test_configuration_class_parsing(self):
+        content = """
+        package com.example.config;
+        
+        @Configuration
+        public class AppConfig {
+            
+            @Bean
+            public MyService myService() {
+                return new MyService();
+            }
+        }
+        """
+        filepath = self.write_temp_file(content, "AppConfig.java")
+        parsed = self.parser.parse(filepath)
+        self.assertEqual(parsed.class_name, "AppConfig")
+        self.assertIn("@Configuration", parsed.class_annotations)
+        self.assertEqual(len(parsed.methods), 1)
+        self.assertEqual(parsed.methods[0].name, "myService")
+
+    def test_negative_scenarios_empty_and_corrupted(self):
+        # Empty file
+        filepath_empty = self.write_temp_file("", "Empty.java")
+        with self.assertRaises(Exception):
+            self.parser.parse(filepath_empty)
+            
+        # Corrupted non-Java file
+        filepath_corrupted = self.write_temp_file("Random binary data: \x00\x01\x02", "Corrupted.java")
+        with self.assertRaises(Exception):
+            self.parser.parse(filepath_corrupted)
+
+    def test_negative_scenario_missing_package(self):
+        content = """
+        public class NoPackage {
+            public void test() {}
+        }
+        """
+        filepath = self.write_temp_file(content, "NoPackage.java")
+        parsed = self.parser.parse(filepath)
+        self.assertEqual(parsed.class_name, "NoPackage")
+        self.assertIsNone(parsed.package_name)
+
+    def test_logging_validation_happy_and_error(self):
+        self.log_capture.clear()
+        
+        content = """
+        package com.example;
+        public class LoggedClass {}
+        """
+        filepath = self.write_temp_file(content, "LoggedClass.java")
+        self.parser.parse(filepath)
+        
+        log_msgs = [msg for level, msg in self.log_capture]
+        self.assertIn("Parsing started", log_msgs)
+        self.assertIn("File parsed: LoggedClass.java", log_msgs)
+        self.assertIn("Parser mapping complete", log_msgs)
+        self.assertTrue(any("Completion summary:" in msg for msg in log_msgs))
+
+    def test_performance_parsing(self):
+        # Generate Small File (10 lines)
+        small_content = "package test;\npublic class Small {\n  public void hello() {}\n}\n"
+        
+        # Generate Medium File (100 lines)
+        medium_lines = ["package test;", "public class Medium {"]
+        for i in range(40):
+            medium_lines.append(f"  private int field{i};")
+            medium_lines.append(f"  public void method{i}() {{}}")
+        medium_lines.append("}")
+        medium_content = "\n".join(medium_lines)
+        
+        # Generate Large File (1000 lines)
+        large_lines = ["package test;", "public class Large {"]
+        for i in range(400):
+            large_lines.append(f"  private int field{i};")
+            large_lines.append(f"  public void method{i}() {{}}")
+        large_lines.append("}")
+        large_content = "\n".join(large_lines)
+        
+        import time
+        
+        # Parse Small
+        small_path = self.write_temp_file(small_content, "Small.java")
+        start_small = time.perf_counter()
+        self.parser.parse(small_path)
+        end_small = time.perf_counter()
+        small_dur = end_small - start_small
+        
+        # Parse Medium
+        medium_path = self.write_temp_file(medium_content, "Medium.java")
+        start_medium = time.perf_counter()
+        self.parser.parse(medium_path)
+        end_medium = time.perf_counter()
+        medium_dur = end_medium - start_medium
+        
+        # Parse Large
+        large_path = self.write_temp_file(large_content, "Large.java")
+        start_large = time.perf_counter()
+        self.parser.parse(large_path)
+        end_large = time.perf_counter()
+        large_dur = end_large - start_large
+        
+        # Log performance metrics
+        logger.info(f"Performance Test - Small file parsing: {small_dur:.4f}s")
+        logger.info(f"Performance Test - Medium file parsing: {medium_dur:.4f}s")
+        logger.info(f"Performance Test - Large file parsing: {large_dur:.4f}s")
+        
+        # Assert sanity checks
+        self.assertTrue(small_dur >= 0)
+        self.assertTrue(medium_dur >= 0)
+        self.assertTrue(large_dur >= 0)
 
 
 if __name__ == "__main__":
