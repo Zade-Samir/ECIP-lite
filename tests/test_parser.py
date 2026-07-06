@@ -73,8 +73,16 @@ class TestJavaParserAST(unittest.TestCase):
         self.assertIn("@RequestMapping", parsed.class_annotations)
         self.assertEqual(parsed.package_name, "com.example.controller")
         self.assertEqual(parsed.imports, ["org.springframework.web.bind.annotation.*"])
-        self.assertEqual(parsed.constructors, ["MyController"])
-        self.assertEqual(parsed.fields, ["private final MyService service"])
+        
+        self.assertEqual(len(parsed.constructors), 1)
+        self.assertEqual(parsed.constructors[0].parameters, ["MyService service"])
+        self.assertEqual(parsed.constructors[0].modifiers, ["public"])
+        
+        self.assertEqual(len(parsed.fields), 1)
+        self.assertEqual(parsed.fields[0].name, "service")
+        self.assertEqual(parsed.fields[0].type, "MyService")
+        self.assertEqual(parsed.fields[0].modifiers, ["private", "final"])
+        
         self.assertEqual(parsed.source_code, content)
         
         # Assert method structure
@@ -156,7 +164,10 @@ class TestJavaParserAST(unittest.TestCase):
         
         self.assertEqual(parsed.class_name, "User")
         self.assertIn("@Entity", parsed.class_annotations)
-        self.assertEqual(parsed.fields, ["private Long id"])
+        self.assertEqual(len(parsed.fields), 1)
+        self.assertEqual(parsed.fields[0].name, "id")
+        self.assertEqual(parsed.fields[0].type, "Long")
+        self.assertEqual(parsed.fields[0].modifiers, ["private"])
 
     def test_interface_parsing(self):
         content = """
@@ -170,7 +181,7 @@ class TestJavaParserAST(unittest.TestCase):
         parsed = self.parser.parse(filepath)
         
         self.assertEqual(parsed.class_name, "BaseInterface")
-        self.assertIn("Comparable", parsed.interfaces)
+        self.assertIn("Comparable<BaseInterface>", parsed.interfaces)
         self.assertEqual(len(parsed.methods), 1)
         
         method = parsed.methods[0]
@@ -305,6 +316,50 @@ class TestJavaParserAST(unittest.TestCase):
             self.assertEqual(parsed.file_name, filename)
             self.assertIsNotNone(parsed.class_name)
             self.assertTrue(len(parsed.methods) > 0)
+
+    def test_serialization_support(self):
+        content = """
+        package com.example.model;
+        
+        import java.io.Serializable;
+        
+        @Entity
+        public class User extends BaseEntity implements Serializable, Cloneable {
+            private Long id;
+            
+            public User() {}
+            
+            public void save() throws IOException, SQLException {}
+        }
+        """
+        filepath = self.write_temp_file(content, "User.java")
+        parsed = self.parser.parse(filepath)
+        
+        # Verify serialization to dict and JSON
+        model_dict = parsed.model_dump()
+        self.assertEqual(model_dict["class_name"], "User")
+        self.assertEqual(model_dict["superclass"], "BaseEntity")
+        self.assertEqual(model_dict["implemented_interfaces"], ["Serializable", "Cloneable"])
+        
+        # Verify fields serialization
+        self.assertEqual(len(model_dict["fields"]), 1)
+        self.assertEqual(model_dict["fields"][0]["name"], "id")
+        self.assertEqual(model_dict["fields"][0]["type"], "Long")
+        self.assertEqual(model_dict["fields"][0]["modifiers"], ["private"])
+        
+        # Verify constructors serialization
+        self.assertEqual(len(model_dict["constructors"]), 1)
+        self.assertEqual(model_dict["constructors"][0]["modifiers"], ["public"])
+        
+        # Verify methods throws serialization
+        self.assertEqual(len(model_dict["methods"]), 1)
+        self.assertEqual(model_dict["methods"][0]["name"], "save")
+        self.assertEqual(model_dict["methods"][0]["throws"], ["IOException", "SQLException"])
+        
+        # Verify Pydantic JSON dumping
+        json_data = parsed.model_dump_json()
+        self.assertIn('"class_name":"User"', json_data)
+        self.assertIn('"throws":["IOException","SQLException"]', json_data)
 
 
 if __name__ == "__main__":

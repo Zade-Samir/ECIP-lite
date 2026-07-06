@@ -12,5 +12,6 @@ class MethodInfo(BaseModel):
     modifiers: list[str] = Field(default_factory=list)
     annotations: list[str] = Field(default_factory=list)
     parameters: list[str] = Field(default_factory=list)
+    throws: list[str] = Field(default_factory=list)
     start_line: int
     end_line: int
