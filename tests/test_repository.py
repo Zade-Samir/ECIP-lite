@@ -247,6 +247,155 @@ class TestJavaRepository(unittest.TestCase):
         parser_methods = [m.name for m in parsed.methods]
         self.assertEqual(db_methods, parser_methods)
 
+    def test_empty_package(self):
+        parsed_file = ParsedJavaFile(
+            file_name="NoPackage.java",
+            file_path="/src/NoPackage.java",
+            package_name=None,
+            class_name="NoPackage",
+            methods=[]
+        )
+        self.repo.save(parsed_file)
+        
+        cursor = self.repo.connection.cursor()
+        cursor.execute("SELECT * FROM java_files WHERE file_path = ?", (parsed_file.file_path,))
+        row = cursor.fetchone()
+        self.assertIsNotNone(row)
+        self.assertIsNone(row[3]) # package_name
+        self.assertEqual(row[4], "NoPackage")
+
+    def test_interface_and_enum_no_class_name(self):
+        parsed_file = ParsedJavaFile(
+            file_name="MyInterface.java",
+            file_path="/src/MyInterface.java",
+            package_name="com.example",
+            class_name=None,
+            methods=[]
+        )
+        self.repo.save(parsed_file)
+        
+        cursor = self.repo.connection.cursor()
+        cursor.execute("SELECT * FROM java_files WHERE file_path = ?", (parsed_file.file_path,))
+        row = cursor.fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[3], "com.example")
+        self.assertIsNone(row[4]) # class_name
+
+    def test_database_locked(self):
+        parsed_file = ParsedJavaFile(
+            file_name="Locked.java",
+            file_path="/src/Locked.java",
+            package_name="com.example",
+            class_name="Locked",
+            methods=[]
+        )
+        
+        class FaultyCursor:
+            def execute(self, sql, params=()):
+                raise sqlite3.OperationalError("database is locked")
+                
+        class FaultyConnection:
+            def cursor(self):
+                return FaultyCursor()
+            def rollback(self):
+                pass
+                
+        original_connection = self.repo.connection
+        self.repo.connection = FaultyConnection()
+        
+        try:
+            with self.assertRaises(sqlite3.OperationalError):
+                self.repo.save(parsed_file)
+        finally:
+            self.repo.connection = original_connection
+            
+        log_msgs = [msg for level, msg in self.log_capture]
+        self.assertIn("Insert failed", log_msgs)
+        self.assertIn("Rollback executed", log_msgs)
+
+    def test_missing_database_or_connection_failure(self):
+        parsed_file = ParsedJavaFile(
+            file_name="MissingDB.java",
+            file_path="/src/MissingDB.java",
+            package_name="com.example",
+            class_name="MissingDB",
+            methods=[]
+        )
+        
+        class FailingConnection:
+            def cursor(self):
+                raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
+            def rollback(self):
+                raise sqlite3.ProgrammingError("Cannot rollback a closed connection.")
+                
+        original_connection = self.repo.connection
+        self.repo.connection = FailingConnection()
+        
+        try:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                self.repo.save(parsed_file)
+        finally:
+            self.repo.connection = original_connection
+            
+        log_msgs = [msg for level, msg in self.log_capture]
+        self.assertIn("Insert failed", log_msgs)
+        self.assertIn("Rollback failed: Cannot rollback a closed connection.", log_msgs)
+
+    def test_duplicate_insert_constraint(self):
+        parsed_file = ParsedJavaFile(
+            file_name="Duplicate.java",
+            file_path="/src/Duplicate.java",
+            package_name="com.example",
+            class_name="Duplicate",
+            methods=[]
+        )
+        
+        # Save once.
+        self.repo.save(parsed_file)
+        
+        # We wrap the connection's cursor to return None on the SELECT query
+        class ForceInsertCursor:
+            def __init__(self, real):
+                self.real = real
+                
+            def execute(self, sql, params=()):
+                if "SELECT id" in sql:
+                    return self.real.execute("SELECT 1 WHERE 1=0")
+                return self.real.execute(sql, params)
+                
+            def fetchone(self):
+                return self.real.fetchone()
+                
+            @property
+            def lastrowid(self):
+                return self.real.lastrowid
+                
+        class ForceInsertConnection:
+            def __init__(self, real):
+                self.real = real
+                
+            def cursor(self):
+                return ForceInsertCursor(self.real.cursor())
+                
+            def commit(self):
+                self.real.commit()
+                
+            def rollback(self):
+                self.real.rollback()
+                
+        original_connection = self.repo.connection
+        self.repo.connection = ForceInsertConnection(original_connection)
+        
+        try:
+            with self.assertRaises(sqlite3.IntegrityError):
+                self.repo.save(parsed_file)
+        finally:
+            self.repo.connection = original_connection
+                
+        log_msgs = [msg for level, msg in self.log_capture]
+        self.assertIn("Insert failed", log_msgs)
+        self.assertIn("Rollback executed", log_msgs)
+
 
 if __name__ == "__main__":
     unittest.main()
