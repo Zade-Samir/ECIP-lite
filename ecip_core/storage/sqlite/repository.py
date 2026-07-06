@@ -299,3 +299,126 @@ class JavaRepository:
             row[0]
             for row in rows
         ]
+
+    def search_classes(self, query: str, exact: bool = True) -> list[dict]:
+        try:
+            cursor = self.connection.cursor()
+            if exact:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE class_name = ?",
+                    (query,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE class_name LIKE ?",
+                    (f"{query}%",)
+                )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "file_name": r[1],
+                    "file_path": r[2],
+                    "package_name": r[3],
+                    "class_name": r[4],
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def search_methods(self, query: str, exact: bool = True) -> list[dict]:
+        try:
+            cursor = self.connection.cursor()
+            if exact:
+                cursor.execute(
+                    """
+                    SELECT jf.id, jf.file_name, jf.file_path, jf.package_name, jf.class_name, jm.method_name
+                    FROM java_methods jm
+                    JOIN java_files jf ON jm.file_id = jf.id
+                    WHERE jm.method_name = ?
+                    """,
+                    (query,)
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT jf.id, jf.file_name, jf.file_path, jf.package_name, jf.class_name, jm.method_name
+                    FROM java_methods jm
+                    JOIN java_files jf ON jm.file_id = jf.id
+                    WHERE jm.method_name LIKE ?
+                    """,
+                    (f"{query}%",)
+                )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "file_id": r[0],
+                    "file_name": r[1],
+                    "file_path": r[2],
+                    "package_name": r[3],
+                    "class_name": r[4],
+                    "method_name": r[5],
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def search_packages(self, query: str, exact: bool = True) -> list[dict]:
+        try:
+            cursor = self.connection.cursor()
+            if exact:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE package_name = ?",
+                    (query,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE package_name LIKE ?",
+                    (f"{query}%",)
+                )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "file_name": r[1],
+                    "file_path": r[2],
+                    "package_name": r[3],
+                    "class_name": r[4],
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def search_file_paths(self, query: str, exact: bool = True) -> list[dict]:
+        try:
+            cursor = self.connection.cursor()
+            if exact:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE file_path = ?",
+                    (query,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, file_name, file_path, package_name, class_name FROM java_files WHERE file_path LIKE ?",
+                    (f"{query}%",)
+                )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "file_name": r[1],
+                    "file_path": r[2],
+                    "package_name": r[3],
+                    "class_name": r[4],
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
