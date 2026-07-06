@@ -74,6 +74,8 @@ class TestJavaChunker(unittest.TestCase):
         self.assertIn("@RestController", overview.content)
         self.assertIn("MyController(MyService service)", overview.content)
         self.assertIn("private final MyService service", overview.content)
+        self.assertIn("Public Methods:", overview.content)
+        self.assertIn("- public void handle()", overview.content)
         
         # Check Method Chunks
         self.assertEqual(len(methods), 1)
@@ -85,18 +87,28 @@ class TestJavaChunker(unittest.TestCase):
         self.assertEqual(handle_chunk.start_line, 13)
         self.assertEqual(handle_chunk.end_line, 15)
         
-        # Verify Stable Deterministic Chunk IDs and Content Hashes
+        # Verify Stable Deterministic Chunk IDs, Content Hashes, and Serialization
         for c in chunks:
             self.assertIsNotNone(c.chunk_id)
             self.assertIsNotNone(c.content_hash)
+            self.assertIsNone(c.created_at)
+            
+            # Content Hash correctness
             expected_hash = hashlib.sha256(c.content.encode("utf-8")).hexdigest()
             self.assertEqual(c.content_hash, expected_hash)
+            
+            # Serialization verification
+            json_dump = c.model_dump_json()
+            self.assertIn('"chunk_id":', json_dump)
+            self.assertIn('"content_hash":', json_dump)
 
         # Logging assertions
         log_msgs = [msg for level, msg in self.log_capture]
         self.assertIn("Chunking started", log_msgs)
+        self.assertIn("Overview chunk generated", log_msgs)
         self.assertIn("Overview chunk created", log_msgs)
         self.assertIn("Method chunk created", log_msgs)
+        self.assertIn("Chunk validation complete", log_msgs)
         self.assertIn("Total chunks generated: 2", log_msgs)
 
     def test_edge_case_empty_class(self):
@@ -152,6 +164,39 @@ class TestJavaChunker(unittest.TestCase):
         
         chunk_ids = [c.chunk_id for c in controller_chunks + service_chunks + repo_chunks]
         self.assertEqual(len(chunk_ids), len(set(chunk_ids)))
+
+    def test_whitespace_cleaning(self):
+        content = """
+        package com.example;
+        
+        
+        
+        public class Clean {
+            
+            public void test() {   
+                System.out.println("Hello");   
+            }
+            
+            
+            
+            
+            public void test2() {}
+        }
+        """
+        filepath = self.write_temp_file(content, "Clean.java")
+        chunks = self.chunker.chunk(filepath)
+        
+        methods = [c for c in chunks if c.chunk_type == "METHOD"]
+        self.assertEqual(len(methods), 2)
+        
+        test_method = [m for m in methods if m.method_name == "test"][0]
+        # Verify that trailing spaces were stripped but leading spaces were preserved
+        self.assertIn('                System.out.println("Hello");', test_method.content)
+        self.assertNotIn('Hello");   ', test_method.content)
+        
+        # Verify that consecutive blank lines were collapsed
+        # Total blank lines between test() and test2() should be collapsed
+        self.assertNotIn("\n\n\n\n", test_method.content)
 
 
 if __name__ == "__main__":

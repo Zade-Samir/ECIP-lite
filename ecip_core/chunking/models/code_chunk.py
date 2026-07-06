@@ -17,3 +17,4 @@ class CodeChunk(BaseModel):
     start_line: int
     end_line: int
     content_hash: str
+    created_at: str | None = None
