@@ -7,6 +7,7 @@ from ecip_core.query.models.coordinator_response import CoordinatorResponse
 from ecip_core.retrieval.models.hybrid_result import HybridResult
 from ecip_core.dependency.dependency_service import DependencyQueryService
 from ecip_core.dependency.impact_analysis import ImpactAnalysisEngine
+from ecip_core.citations.citation_engine import CitationEngine
 
 # Graph-routed intents: these bypass semantic retrieval
 GRAPH_INTENTS = {"dependency_analysis", "impact_analysis"}
@@ -87,6 +88,9 @@ class QueryCoordinator:
             # Graph analysis services
             self.dependency_service = DependencyQueryService()
             self.impact_engine = ImpactAnalysisEngine()
+
+            # Citation engine
+            self.citation_engine = CitationEngine()
 
             # Context & inference
             self.context_builder = ContextBuilder()
@@ -237,12 +241,18 @@ class QueryCoordinator:
                     logger.error(f"Inference failure: {e}")
                     raise
 
+                # Generate validated citations from retrieved chunks
+                project_id = getattr(request, "project_id", "") or ""
+                citations = self.citation_engine.generate(
+                    retrieved_results, project_id=project_id
+                )
+
                 response = CoordinatorResponse(
                     answer=inference_res.answer,
                     model=inference_res.model,
                     intent=intent_res,
                     entities=entities,
-                    citations=retrieved_results
+                    citations=citations
                 )
                 logger.info("Response returned")
                 return response
