@@ -1,57 +1,93 @@
-## first orchestrator of this ECIP
-## Question -> Prompt Builder -> Prompt -> Ollama Provider -> Answer -> Return
-## Inference Service khud prompt nahi banata. Inference Service khud Ollama call nahi karta. Inference Service sirf coordinate karta hai. Isi liye iska naam Inference Service hai.
-
-from ecip_core.models.request import InferenceRequest
-from ecip_core.models.response import InferenceResponse
-
-from ecip_core.prompt.prompt_builder import PromptBuilder
-from ecip_core.inference.providers.ollama_provider import OllamaProvider
-from ecip_core.inference.config.settings import settings
-
+import time
 from ecip_core.common.logger import get_logger
+from ecip_core.models.request import InferenceRequest
+from ecip_core.prompt.prompt_builder import PromptBuilder
+from ecip_core.prompt.models.prompt import Prompt
+from ecip_core.inference.providers.ollama_provider import OllamaProvider
+from ecip_core.inference.models.inference_response import InferenceResponse
+from ecip_core.inference.config.settings import settings
 
 logger = get_logger(__name__)
 
 
 class InferenceService:
     """
-    Coordinates the inference pipeline.
+    Coordinates the provider-agnostic inference pipeline.
     """
 
     def __init__(self):
-
         self.prompt_builder = PromptBuilder()
-        self.inference_provider = OllamaProvider()
+        self.providers = {
+            "ollama": OllamaProvider()
+        }
 
     def ask(
         self,
-        request: InferenceRequest,
+        prompt: Prompt | InferenceRequest,
         context: str = ""
     ) -> InferenceResponse:
+        """
+        Executes LLM inference via the configured provider.
+        Supports both Prompt objects and legacy InferenceRequest inputs.
+        """
+        logger.info("Inference started")
 
-        logger.info("Building prompt...")
+        # 1. Select provider
+        # We can configure provider name in settings. Default to ollama.
+        provider_name = "ollama"
+        provider = self.providers.get(provider_name)
+        if not provider:
+            logger.error("Provider unavailable: configured provider not found")
+            raise ValueError(f"Provider {provider_name} not registered")
 
-        prompt = self.prompt_builder.build_prompt(
-            question=request.question,
-            context=context
-        )
+        logger.info(f"Provider selected: {provider_name}")
 
-        logger.info("Prompt generated successfully.")
+        # Validate availability
+        if not provider.validate_availability():
+            logger.error("Provider unavailable: provider offline")
+            raise ConnectionError(f"Provider {provider_name} is offline")
 
-        logger.info("Generating answer from provider...")
+        # 2. Extract prompt text and citations
+        if isinstance(prompt, InferenceRequest):
+            # Legacy mode
+            logger.info("Legacy InferenceRequest input, building prompt...")
+            prompt_text = self.prompt_builder.build_prompt(
+                question=prompt.question,
+                context=context
+            )
+            citations = []
+            prompt_tokens_est = int(len(prompt_text) / 4) + 1
+        else:
+            prompt_text = prompt.prompt_text
+            citations = prompt.citations
+            prompt_tokens_est = prompt.token_estimate
 
-        answer = self.inference_provider.generate(prompt)
+        if not prompt_text.strip():
+            logger.error("Invalid response: empty prompt text")
+            raise ValueError("Prompt text cannot be empty")
 
-        logger.info("Answer generated successfully.")
+        # 3. Execute generation
+        start_time = time.perf_counter()
+        try:
+            response = provider.generate(prompt_text, settings.MODEL_NAME)
+        except TimeoutError as e:
+            logger.error(f"Timeout: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Inference failure: {e}")
+            raise
 
-        logger.info("Creating response...")
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info(f"Response received in {duration_ms}ms")
 
-        response = InferenceResponse(
-            answer=answer,
-            model=settings.MODEL_NAME
-        )
+        # Standardize completion and token metadata
+        response.citations = citations
+        response.inference_time_ms = duration_ms
 
-        logger.info("Response created successfully.")
+        # Sync estimated input tokens if not populated
+        if response.prompt_tokens == 0:
+            response.prompt_tokens = prompt_tokens_est
+            response.total_tokens = response.prompt_tokens + response.completion_tokens
 
+        logger.info("Duration: %d ms" % duration_ms)
         return response
