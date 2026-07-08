@@ -96,6 +96,34 @@ Citation Engine           ← Validates answer → file:line links
 Response Formatter        ← CLI output or API JSON response
 ```
 
+### 🔄 How it Works: Step-by-Step Data Flow
+
+ECIP Lite operates via two primary runtime pipelines: **Indexing** and **Query Processing**.
+
+#### 1. The Indexing Pipeline (Code Base to Local Database)
+When you trigger a project index (via CLI or `POST /api/v1/index`):
+1. **Scanning**: Recursively discovers all `.java` files in the project.
+2. **Incremental Check**: Compares the SHA-256 hash of each file with the previously stored hash in SQLite. If unchanged, the file is skipped.
+3. **AST Parsing**: Passes changed/new files through the Java AST parser (`javalang`) to extract classes, methods, parameters, annotations, and dependency imports.
+4. **Dependency Mapping**: Populates a directed graph representing class dependency edges (`uses`, `depends_on`).
+5. **Smart Chunking**: Splits files into method-level chunks (with signature contexts) plus a class-level overview chunk.
+6. **Local Embedding**: Sends chunks in batches to Ollama's local `nomic-embed-text` endpoint to get 768-dimension vectors.
+7. **Storage**: Persists structural metadata to SQLite and indexes vector representations to a disk-backed FAISS vector store.
+
+#### 2. The Query Pipeline (Question to Cited Answer)
+When you ask a question (like *"What does UserService do?"*):
+1. **Entity Extraction**: Finds potential class names, method names, or endpoints in your query (e.g. `UserService`).
+2. **Intent Analysis**: Determines if you are asking for code explanation, dependency traversal, endpoint lookup, or impact analysis.
+3. **Hybrid Retrieval**:
+   - Performs an exact metadata search in SQLite for parsed classes/methods matching the query.
+   - Performs a semantic similarity search in the FAISS vector index using the query's embedding vector.
+   - Merges and ranks the results, prioritizing exact metadata matches.
+4. **Context Building**: Fetches the actual code snippets/chunks of the top-ranked files and organizes them.
+5. **Prompt Assembly**: Injects the code context, rules, and question into a structured system prompt.
+6. **Local LLM Inference**: Sends the prompt to Ollama's local LLM (`qwen3.5:9b`).
+7. **Citation Verification**: Matches the LLM's response content against the injected file lines to generate verified `file:line` source tags.
+8. **Formatting**: Renders a rich response showing the answer, source citations, execution metrics, and cache status.
+
 ---
 
 ## 🛠️ Prerequisites
