@@ -1,4 +1,5 @@
 import time
+from typing import Callable
 from ecip_core.common.logger import get_logger
 from ecip_core.models.request import InferenceRequest
 from ecip_core.prompt.prompt_builder import PromptBuilder
@@ -24,16 +25,17 @@ class InferenceService:
     def ask(
         self,
         prompt: Prompt | InferenceRequest,
-        context: str = ""
+        context: str = "",
+        callback: Callable[[str], None] = None
     ) -> InferenceResponse:
         """
         Executes LLM inference via the configured provider.
         Supports both Prompt objects and legacy InferenceRequest inputs.
+        Supports token streaming when callback is provided.
         """
         logger.info("Inference started")
 
         # 1. Select provider
-        # We can configure provider name in settings. Default to ollama.
         provider_name = "ollama"
         provider = self.providers.get(provider_name)
         if not provider:
@@ -49,7 +51,6 @@ class InferenceService:
 
         # 2. Extract prompt text and citations
         if isinstance(prompt, InferenceRequest):
-            # Legacy mode
             logger.info("Legacy InferenceRequest input, building prompt...")
             prompt_text = self.prompt_builder.build_prompt(
                 question=prompt.question,
@@ -69,7 +70,7 @@ class InferenceService:
         # 3. Execute generation
         start_time = time.perf_counter()
         try:
-            response = provider.generate(prompt_text, settings.MODEL_NAME)
+            response = provider.generate(prompt_text, settings.MODEL_NAME, callback=callback)
         except TimeoutError as e:
             logger.error(f"Timeout: {e}")
             raise
@@ -84,7 +85,6 @@ class InferenceService:
         response.citations = citations
         response.inference_time_ms = duration_ms
 
-        # Sync estimated input tokens if not populated
         if response.prompt_tokens == 0:
             response.prompt_tokens = prompt_tokens_est
             response.total_tokens = response.prompt_tokens + response.completion_tokens
