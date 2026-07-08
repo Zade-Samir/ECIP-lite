@@ -359,7 +359,7 @@ try:
     
     is_testing = (
         settings.ECIP_PROFILE == "testing"
-        or (len(sys.argv) > 0 and any(p in os.path.basename(sys.argv[0]) for p in ["unittest", "pytest"]))
+        or (len(sys.argv) > 0 and any(p in os.path.basename(sys.argv[0]) for p in ["unittest", "pytest", "validation"]))
     )
     
     if settings.CACHE_ENABLED and not is_testing:
