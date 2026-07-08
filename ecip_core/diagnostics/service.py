@@ -266,7 +266,7 @@ class DiagnosticsService:
             import faiss
             db = Database()
             cursor = db.get_connection().cursor()
-            cursor.execute("SELECT COUNT(*) FROM java_methods")
+            cursor.execute("SELECT (SELECT COUNT(*) FROM java_methods) + (SELECT COUNT(*) FROM java_files)")
             chunk_count = cursor.fetchone()[0]
 
             idx_path = Path(settings.FAISS_INDEX_PATH)
