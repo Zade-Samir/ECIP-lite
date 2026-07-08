@@ -8,8 +8,17 @@ logger = get_logger(__name__)
 class JavaRepository:
 
     def __init__(self):
+        self._connection_override = None
 
-        self.connection = Database().get_connection()
+    @property
+    def connection(self):
+        if self._connection_override is not None:
+            return self._connection_override
+        return Database().get_connection()
+
+    @connection.setter
+    def connection(self, value):
+        self._connection_override = value
 
     def save(self, parsed_file: ParsedJavaFile, file_hash: str = ""):
 
@@ -435,7 +444,8 @@ class JavaRepository:
         status: str
     ):
         try:
-            cursor = self.connection.cursor()
+            conn = Database.get_registry_connection()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO projects (
@@ -444,14 +454,15 @@ class JavaRepository:
                 """,
                 (project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status)
             )
-            self.connection.commit()
+            conn.commit()
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_projects(self) -> list[dict]:
         try:
-            cursor = self.connection.cursor()
+            conn = Database.get_registry_connection()
+            cursor = conn.cursor()
             cursor.execute("SELECT project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status FROM projects")
             rows = cursor.fetchall()
             return [
@@ -473,7 +484,8 @@ class JavaRepository:
 
     def get_project(self, project_id: str) -> dict | None:
         try:
-            cursor = self.connection.cursor()
+            conn = Database.get_registry_connection()
+            cursor = conn.cursor()
             cursor.execute(
                 "SELECT project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status FROM projects WHERE project_id = ?",
                 (project_id,)
@@ -497,23 +509,18 @@ class JavaRepository:
 
     def delete_project(self, project_id: str):
         try:
+            # First clean active connection metadata (if it matches the project being deleted)
             cursor = self.connection.cursor()
-            cursor.execute("SELECT root_path FROM projects WHERE project_id = ?", (project_id,))
-            row = cursor.fetchone()
-            if row:
-                root_path = row[0]
-                
-                cursor.execute("SELECT id FROM java_files WHERE file_path LIKE ?", (root_path + "%",))
-                file_ids = [r[0] for r in cursor.fetchall()]
-                
-                if file_ids:
-                    placeholders = ",".join("?" for _ in file_ids)
-                    cursor.execute(f"DELETE FROM java_methods WHERE file_id IN ({placeholders})", tuple(file_ids))
-                    cursor.execute("DELETE FROM java_files WHERE file_path LIKE ?", (root_path + "%",))
-                
-                cursor.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
-                cursor.execute("DELETE FROM dependency_edges WHERE project_id = ?", (project_id,))
-                self.connection.commit()
+            cursor.execute("DELETE FROM java_methods")
+            cursor.execute("DELETE FROM java_files")
+            cursor.execute("DELETE FROM dependency_edges")
+            self.connection.commit()
+
+            # Clean registry metadata
+            conn = Database.get_registry_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
+            conn.commit()
         except Exception as e:
             logger.error("Database failure")
             raise e

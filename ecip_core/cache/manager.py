@@ -280,7 +280,9 @@ class CacheManager:
                     else:
                         kwarg_strs.append(f"{k}:{repr(v)}")
 
-                raw_string = f"{func.__module__}.{func.__name__}:{','.join(arg_strs)}:{','.join(kwarg_strs)}"
+                from ecip_core.workspace.manager import workspace_manager
+                active_project = workspace_manager.get_active_workspace()
+                raw_string = f"{active_project}:{func.__module__}.{func.__name__}:{','.join(arg_strs)}:{','.join(kwarg_strs)}"
                 key = hashlib.md5(raw_string.encode("utf-8")).hexdigest()
 
                 cached_val = self.get(key)

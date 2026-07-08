@@ -49,24 +49,29 @@ async def delete_project(project_id: str):
             raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
         root_path = project["root_path"]
-
-        # 1. Clean FAISS vectors from filesystem
+        # 1. Clean FAISS vectors from filesystem (keeps local mock compatibility)
         try:
             ecip_dir = Path(root_path) / ".ecip"
             if ecip_dir.exists() and ecip_dir.is_dir():
                 shutil.rmtree(ecip_dir)
         except Exception as e:
             logger.error(f"Vector cleanup failure: {e}")
-            logger.error("Delete failure")
             raise HTTPException(status_code=500, detail="Failed to delete FAISS vector files")
 
-        # 2. Clean SQLite metadata
+        # 2. Clean SQLite metadata (keeps local mock compatibility)
         try:
             repo.delete_project(project_id)
         except Exception as e:
             logger.error(f"Database failure: {e}")
-            logger.error("Delete failure")
             raise HTTPException(status_code=500, detail="Failed to delete database metadata")
+
+        # Delegate rest of the workspace delete operations to WorkspaceManager
+        from ecip_core.workspace.manager import workspace_manager
+        try:
+            workspace_manager.delete_workspace(project_id)
+        except Exception as e:
+            logger.error(f"Workspace cleanup failure: {e}")
+            raise HTTPException(status_code=500, detail="Failed to delete database metadata and FAISS indices")
 
         logger.info("Project deleted")
         return {"status": "success", "message": f"Project '{project_id}' successfully deleted"}

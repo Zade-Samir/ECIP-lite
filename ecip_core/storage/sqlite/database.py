@@ -5,24 +5,53 @@ from pathlib import Path
 class Database:
 
     _connection = None
+    _active_db_path = None
+    _registry_connection = None
 
     def __init__(self):
+        from ecip_core.workspace.manager import WorkspaceManager
+        current_db_path = WorkspaceManager.get_active_db_path()
+
+        if Database._active_db_path != current_db_path:
+            # Cleanly close old connection if it changes
+            if Database._connection is not None:
+                try:
+                    Database._connection.close()
+                except Exception:
+                    pass
+                Database._connection = None
+            Database._active_db_path = current_db_path
 
         if Database._connection is None:
-
-            db_dir = Path("data")
-            db_dir.mkdir(exist_ok=True)
-
-            Database._connection = sqlite3.connect(
-                db_dir / "ecip.db"
-            )
-
+            db_file = Path(Database._active_db_path)
+            db_file.parent.mkdir(exist_ok=True)
+            Database._connection = sqlite3.connect(db_file)
             self.connection = Database._connection
-
             self.initialize()
-
         else:
             self.connection = Database._connection
+
+    @classmethod
+    def get_registry_connection(cls):
+        """Always returns the connection to the master projects registry (data/ecip.db)."""
+        if cls._registry_connection is None:
+            db_dir = Path("data")
+            db_dir.mkdir(exist_ok=True)
+            cls._registry_connection = sqlite3.connect(db_dir / "ecip.db")
+            # Ensure the master registry database has the projects table initialized
+            db = Database()
+            old_active = db._active_db_path
+            
+            # Temporarily point connection to registry to run init
+            Database._active_db_path = str(db_dir / "ecip.db")
+            conn_backup = Database._connection
+            Database._connection = cls._registry_connection
+            db.initialize()
+            
+            # Revert states
+            Database._active_db_path = old_active
+            Database._connection = conn_backup
+        return cls._registry_connection
 
     def initialize(self):
 

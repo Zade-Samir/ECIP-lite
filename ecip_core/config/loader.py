@@ -35,11 +35,11 @@ class Settings(BaseSettings):
     ECIP_PROFILE: str = Field(default="development")
 
     # Database Domain
-    DB_PATH: str = Field(default="data/ecip.db")
+    DEFAULT_DB_PATH: str = Field(default="data/ecip.db", validation_alias="DB_PATH")
 
     # FAISS Domain
-    FAISS_INDEX_PATH: str = Field(default=".ecip/faiss.index")
-    FAISS_METADATA_PATH: str = Field(default=".ecip/faiss_metadata.json")
+    DEFAULT_FAISS_INDEX_PATH: str = Field(default=".ecip/faiss.index", validation_alias="FAISS_INDEX_PATH")
+    DEFAULT_FAISS_METADATA_PATH: str = Field(default=".ecip/faiss_metadata.json", validation_alias="FAISS_METADATA_PATH")
 
     # Embedding Domain
     EMBEDDING_PROVIDER: str = Field(default="ollama")
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
             return "development"
         return v
 
-    @field_validator("DB_PATH")
+    @field_validator("DEFAULT_DB_PATH")
     @classmethod
     def validate_db_path(cls, v: str) -> str:
         if not v or not v.strip():
@@ -108,6 +108,31 @@ class Settings(BaseSettings):
         if v <= 0:
             raise ValueError("Numeric configuration values must be greater than 0")
         return v
+
+    # Dynamic properties for workspace isolation
+    @property
+    def DB_PATH(self) -> str:
+        from ecip_core.workspace.manager import workspace_manager
+        active = workspace_manager.get_active_workspace()
+        if active == "default":
+            return self.DEFAULT_DB_PATH
+        return f"data/ecip_{active}.db"
+
+    @property
+    def FAISS_INDEX_PATH(self) -> str:
+        from ecip_core.workspace.manager import workspace_manager
+        active = workspace_manager.get_active_workspace()
+        if active == "default":
+            return self.DEFAULT_FAISS_INDEX_PATH
+        return f".ecip/faiss_{active}.index"
+
+    @property
+    def FAISS_METADATA_PATH(self) -> str:
+        from ecip_core.workspace.manager import workspace_manager
+        active = workspace_manager.get_active_workspace()
+        if active == "default":
+            return self.DEFAULT_FAISS_METADATA_PATH
+        return f".ecip/faiss_metadata_{active}.json"
 
     # Domain Accessors
     @property
@@ -253,15 +278,10 @@ settings = load_settings()
 # Apply backward compatibility patches to external modules (including SQLite repository singleton)
 try:
     from ecip_core.storage.sqlite.database import Database
-    # Open connection dynamically using configured DB path to align the Database class
-    db_file = Path(settings.DB_PATH)
-    db_file.parent.mkdir(exist_ok=True)
-    Database._connection = sqlite3.connect(db_file)
     db_instance = Database()
-    db_instance.initialize()
-    logger.info("Database singleton bound to configured DB path")
+    logger.info("Database singleton initialized using dynamic configuration paths")
 except Exception as e:
-    logger.warning(f"Could not bind Database connection to configured DB path: {e}")
+    logger.warning(f"Could not initialize Database connection: {e}")
 
 # Inject our settings singleton into the old settings module to keep all old imports working
 try:
