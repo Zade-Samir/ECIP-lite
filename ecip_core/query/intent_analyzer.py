@@ -35,10 +35,11 @@ class IntentAnalyzer:
             (
                 "dependency_analysis",
                 [
-                    r"\b(?:what|who|which)\s+(?:depends on|uses|imports|calls)\b",
-                    r"\b(?:dependencies of|dependency|dependency graph)\b",
+                    r"\b(?:what|who|which)(?:\s+\w+)?\s+(?:depends on|uses|imports|calls|depend on|use|import|call)\b",
+                    r"\b(?:dependencies of|dependency|dependency graph|show dependency|dependency tree)\b",
+                    r"\b(?:which classes|which services|which components)\s+(?:use|depend on|call|import)\b",
                 ],
-                ["depends on", "dependencies", "imports", "calls", "uses", "what depends on", "who uses"],
+                ["depends on", "dependencies", "imports", "calls", "uses", "what depends on", "who uses", "which classes use", "dependency tree"],
                 0.8
             ),
             (
