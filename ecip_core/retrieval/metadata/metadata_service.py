@@ -104,6 +104,7 @@ class MetadataSearchService:
                 results.append(
                     MetadataResult(
                         project_id=project_id,
+                        chunk_id=chunk.chunk_id or "",
                         file_path=file_path,
                         package_name=package_name,
                         class_name=class_name,

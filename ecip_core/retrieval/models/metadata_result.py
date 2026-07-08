@@ -6,6 +6,7 @@ class MetadataResult(BaseModel):
     Represents a structured metadata search result.
     """
     project_id: str
+    chunk_id: str = ""
     file_path: str
     package_name: str
     class_name: str
