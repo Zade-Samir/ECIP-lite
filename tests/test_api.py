@@ -28,8 +28,10 @@ class TestAPI(unittest.TestCase):
 
     # --- Query Endpoint Tests ---
 
+    @patch("ecip_core.api.routes.query.workspace_manager")
     @patch("ecip_core.api.routes.query.JavaRepository")
-    def test_query_success_flow(self, mock_repo_class):
+    def test_query_success_flow(self, mock_repo_class, mock_ws):
+        mock_ws.get_workspace.return_value = {"project_id": "sample-project", "root_path": "/projects/sample"}
         mock_repo = mock_repo_class.return_value
         mock_repo.get_all_file_paths.return_value = ["/src/UserService.java"]
 
@@ -61,7 +63,7 @@ class TestAPI(unittest.TestCase):
             "question": "Explain UserService"
         }
 
-        response = self.client.post("/query", json=payload)
+        response = self.client.post("/api/v1/query", json=payload)
         self.assertEqual(response.status_code, 200)
 
         res_json = response.json()
@@ -72,45 +74,53 @@ class TestAPI(unittest.TestCase):
         self.assertIn("duration_ms", res_json)
 
     def test_invalid_payload_validation_error(self):
-        response = self.client.post("/query", json={"question": "hello"})
+        response = self.client.post("/api/v1/query", json={"question": "hello"})
         self.assertEqual(response.status_code, 422)
 
-        response = self.client.post("/query", json={"project_id": "default"})
+        response = self.client.post("/api/v1/query", json={"project_id": "default"})
         self.assertEqual(response.status_code, 422)
 
     @patch("ecip_core.api.routes.query.JavaRepository")
     def test_missing_project_not_found_404(self, mock_repo_class):
-        response = self.client.post("/query", json={"project_id": "wrong-proj", "question": "hello"})
+        response = self.client.post("/api/v1/query", json={"project_id": "wrong-proj", "question": "hello"})
         self.assertEqual(response.status_code, 404)
 
+        # When project_id is 'sample-project', it hits workspace lookup — returns 404 (workspace not registered)
+        # When project is registered but index is empty, also returns 404
         mock_repo = mock_repo_class.return_value
         mock_repo.get_all_file_paths.return_value = []
 
-        response = self.client.post("/query", json={"project_id": "sample-project", "question": "hello"})
-        self.assertEqual(response.status_code, 404)
-        self.assertIn("No indexed project", response.json()["detail"])
+        with patch("ecip_core.api.routes.query.workspace_manager") as mock_ws:
+            mock_ws.get_workspace.return_value = {"project_id": "sample-project"}
+            response = self.client.post("/api/v1/query", json={"project_id": "sample-project", "question": "hello"})
+            self.assertEqual(response.status_code, 404)
+            self.assertIn("indexed project", response.json()["detail"].lower())
 
+    @patch("ecip_core.api.routes.query.workspace_manager")
     @patch("ecip_core.api.routes.query.JavaRepository")
-    def test_provider_unavailable_503_error(self, mock_repo_class):
+    def test_provider_unavailable_503_error(self, mock_repo_class, mock_ws):
+        mock_ws.get_workspace.return_value = {"project_id": "sample-project", "root_path": "/projects/sample"}
         mock_repo = mock_repo_class.return_value
         mock_repo.get_all_file_paths.return_value = ["/src/UserService.java"]
 
         self.mock_coord.process.side_effect = ConnectionError("Ollama is offline")
 
         payload = {"project_id": "sample-project", "question": "hello"}
-        response = self.client.post("/query", json=payload)
+        response = self.client.post("/api/v1/query", json=payload)
         self.assertEqual(response.status_code, 503)
         self.assertIn("Inference Provider Unavailable", response.json()["detail"])
 
+    @patch("ecip_core.api.routes.query.workspace_manager")
     @patch("ecip_core.api.routes.query.JavaRepository")
-    def test_unexpected_error_500_mapping(self, mock_repo_class):
+    def test_unexpected_error_500_mapping(self, mock_repo_class, mock_ws):
+        mock_ws.get_workspace.return_value = {"project_id": "sample-project", "root_path": "/projects/sample"}
         mock_repo = mock_repo_class.return_value
         mock_repo.get_all_file_paths.return_value = ["/src/UserService.java"]
 
         self.mock_coord.process.side_effect = RuntimeError("Something crashed inside the pipeline")
 
         payload = {"project_id": "sample-project", "question": "hello"}
-        response = self.client.post("/query", json=payload)
+        response = self.client.post("/api/v1/query", json=payload)
         self.assertEqual(response.status_code, 500)
         self.assertIn("Internal Server Error", response.json()["detail"])
 
@@ -120,7 +130,7 @@ class TestAPI(unittest.TestCase):
         schema = response.json()
         self.assertIn("info", schema)
         self.assertIn("paths", schema)
-        self.assertIn("/query", schema["paths"])
+        self.assertIn("/api/v1/query", schema["paths"])
         self.assertIn("/health", schema["paths"])
 
     # --- Indexing Endpoint Tests ---
@@ -145,7 +155,7 @@ class TestAPI(unittest.TestCase):
         mock_repo.get_file_hash.return_value = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
         with patch("builtins.open", unittest.mock.mock_open(read_data=b"")):
-            response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample-project"})
+            response = self.client.post("/api/v1/index", json={"project_path": "/projects/sample", "project_alias": "sample-project"})
 
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
@@ -156,14 +166,14 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(res_json["files_indexed"], 0)
 
     def test_indexing_invalid_payload_error(self):
-        response = self.client.post("/index", json={"project_path": "/projects/sample"})
+        response = self.client.post("/api/v1/index", json={"project_path": "/projects/sample"})
         self.assertEqual(response.status_code, 422)
 
-        response = self.client.post("/index", json={"project_alias": "sample"})
+        response = self.client.post("/api/v1/index", json={"project_alias": "sample"})
         self.assertEqual(response.status_code, 422)
 
     def test_indexing_invalid_path_error(self):
-        response = self.client.post("/index", json={"project_path": "/projects/non-existent-path-abc", "project_alias": "sample"})
+        response = self.client.post("/api/v1/index", json={"project_path": "/projects/non-existent-path-abc", "project_alias": "sample"})
         self.assertEqual(response.status_code, 400)
         self.assertIn("does not exist", response.json()["detail"])
 
@@ -178,7 +188,7 @@ class TestAPI(unittest.TestCase):
         mock_scanner = mock_scanner_class.return_value
         mock_scanner.scan.side_effect = PermissionError("Access denied")
 
-        response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
+        response = self.client.post("/api/v1/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
         self.assertEqual(response.status_code, 403)
         self.assertIn("Permission Denied", response.json()["detail"])
 
@@ -193,7 +203,7 @@ class TestAPI(unittest.TestCase):
         mock_scanner = mock_scanner_class.return_value
         mock_scanner.scan.side_effect = RuntimeError("Scanner crashed")
 
-        response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
+        response = self.client.post("/api/v1/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
         self.assertEqual(response.status_code, 500)
         self.assertIn("Failed to scan directory", response.json()["detail"])
 

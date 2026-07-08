@@ -33,7 +33,7 @@ class TestProjectAPI(unittest.TestCase):
             }
         ]
 
-        response = self.client.get("/projects")
+        response = self.client.get("/api/v1/projects")
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
         self.assertIn("projects", res_json)
@@ -46,7 +46,7 @@ class TestProjectAPI(unittest.TestCase):
         mock_repo = mock_repo_class.return_value
         mock_repo.get_projects.return_value = []
 
-        response = self.client.get("/projects")
+        response = self.client.get("/api/v1/projects")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"projects": []})
 
@@ -64,7 +64,7 @@ class TestProjectAPI(unittest.TestCase):
             "status": "active"
         }
 
-        response = self.client.get("/projects/sample-project")
+        response = self.client.get("/api/v1/projects/sample-project")
         self.assertEqual(response.status_code, 200)
         res_json = response.json()
         self.assertEqual(res_json["project_id"], "sample-project")
@@ -75,9 +75,9 @@ class TestProjectAPI(unittest.TestCase):
         mock_repo = mock_repo_class.return_value
         mock_repo.get_project.return_value = None
 
-        response = self.client.get("/projects/wrong-id")
+        response = self.client.get("/api/v1/projects/wrong-id")
         self.assertEqual(response.status_code, 404)
-        self.assertIn("not found", response.json()["detail"])
+        self.assertIn("not found", response.json()["detail"].lower())
 
     @patch("ecip_core.api.routes.projects.shutil.rmtree")
     @patch("ecip_core.api.routes.projects.Path")
@@ -100,7 +100,7 @@ class TestProjectAPI(unittest.TestCase):
         mock_path.is_dir.return_value = True
         mock_path.__truediv__.return_value = mock_path
 
-        response = self.client.delete("/projects/sample-project")
+        response = self.client.delete("/api/v1/projects/sample-project")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "success")
 
@@ -112,7 +112,7 @@ class TestProjectAPI(unittest.TestCase):
         mock_repo = mock_repo_class.return_value
         mock_repo.get_project.return_value = None
 
-        response = self.client.delete("/projects/wrong-id")
+        response = self.client.delete("/api/v1/projects/wrong-id")
         self.assertEqual(response.status_code, 404)
 
 

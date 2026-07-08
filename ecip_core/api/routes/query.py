@@ -5,6 +5,7 @@ from ecip_core.api.models.query import QueryRequest, QueryResponse, CitationMode
 from ecip_core.models.request import InferenceRequest
 from ecip_core.coordinator.query_coordinator import QueryCoordinator
 from ecip_core.storage.sqlite.repository import JavaRepository
+from ecip_core.workspace.manager import workspace_manager
 
 logger = get_logger(__name__)
 
@@ -36,11 +37,20 @@ async def query_pipeline(
         logger.warning("Unknown project")
         raise HTTPException(status_code=400, detail="Project ID cannot be empty")
 
-    # 2. Resolve project name
-    valid_projects = {"sample-project", "default"}
-    if request.project_id not in valid_projects:
-        logger.warning(f"Unknown project: {request.project_id}")
-        raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+    # 2. Resolve project — check against registered workspaces
+    try:
+        workspace = workspace_manager.get_workspace(request.project_id)
+        if not workspace:
+            # Also allow "default" as a fallback — check if any project is indexed
+            if request.project_id != "default":
+                logger.warning(f"Unknown workspace: {request.project_id}")
+                raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found. Register it first via POST /api/v1/workspaces")
+        logger.info("Project resolved")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Workspace lookup error: {e}")
+        raise HTTPException(status_code=500, detail="Workspace lookup failed")
 
     # Verify project index is not empty
     try:
@@ -48,8 +58,8 @@ async def query_pipeline(
         files = repo.get_all_file_paths()
         if not files:
             logger.warning("No indexed project")
-            raise HTTPException(status_code=404, detail="No indexed project found in database")
-        logger.info("Project resolved")
+            raise HTTPException(status_code=404, detail="No indexed project found. Run POST /api/v1/index first")
+        logger.info("Index verified")
     except HTTPException:
         raise
     except Exception as e:
