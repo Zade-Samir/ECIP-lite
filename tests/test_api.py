@@ -21,12 +21,12 @@ class TestAPI(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         self.mock_coord = MagicMock()
-        # Override FastAPI dependency injection resolver
         app.dependency_overrides[get_coordinator] = lambda: self.mock_coord
 
     def tearDown(self):
-        # Clear overrides to prevent cross-test contamination
         app.dependency_overrides.clear()
+
+    # --- Query Endpoint Tests ---
 
     @patch("ecip_core.api.routes.query.JavaRepository")
     def test_query_success_flow(self, mock_repo_class):
@@ -122,6 +122,80 @@ class TestAPI(unittest.TestCase):
         self.assertIn("paths", schema)
         self.assertIn("/query", schema["paths"])
         self.assertIn("/health", schema["paths"])
+
+    # --- Indexing Endpoint Tests ---
+
+    @patch("ecip_core.api.routes.indexing.Path")
+    @patch("ecip_core.api.routes.indexing.IndexBuilder")
+    @patch("ecip_core.api.routes.indexing.JavaRepository")
+    @patch("ecip_core.api.routes.indexing.ProjectScanner")
+    def test_indexing_success_flow(self, mock_scanner_class, mock_repo_class, mock_builder_class, mock_path_class):
+        mock_path = mock_path_class.return_value
+        mock_path.exists.return_value = True
+        mock_path.is_dir.return_value = True
+        mock_path.resolve.return_value = mock_path
+
+        mock_scanner = mock_scanner_class.return_value
+        mock_file = MagicMock()
+        mock_file.resolve.return_value = "/projects/sample/UserService.java"
+        mock_file.name = "UserService.java"
+        mock_scanner.scan.return_value = [mock_file]
+
+        mock_repo = mock_repo_class.return_value
+        mock_repo.get_file_hash.return_value = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"")):
+            response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample-project"})
+
+        self.assertEqual(response.status_code, 200)
+        res_json = response.json()
+        self.assertEqual(res_json["status"], "success")
+        self.assertEqual(res_json["project_id"], "sample-project")
+        self.assertEqual(res_json["files_scanned"], 1)
+        self.assertEqual(res_json["files_skipped"], 1)
+        self.assertEqual(res_json["files_indexed"], 0)
+
+    def test_indexing_invalid_payload_error(self):
+        response = self.client.post("/index", json={"project_path": "/projects/sample"})
+        self.assertEqual(response.status_code, 422)
+
+        response = self.client.post("/index", json={"project_alias": "sample"})
+        self.assertEqual(response.status_code, 422)
+
+    def test_indexing_invalid_path_error(self):
+        response = self.client.post("/index", json={"project_path": "/projects/non-existent-path-abc", "project_alias": "sample"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("does not exist", response.json()["detail"])
+
+    @patch("ecip_core.api.routes.indexing.Path")
+    @patch("ecip_core.api.routes.indexing.ProjectScanner")
+    def test_indexing_permission_error_mapping_403(self, mock_scanner_class, mock_path_class):
+        mock_path = mock_path_class.return_value
+        mock_path.exists.return_value = True
+        mock_path.is_dir.return_value = True
+        mock_path.resolve.return_value = mock_path
+
+        mock_scanner = mock_scanner_class.return_value
+        mock_scanner.scan.side_effect = PermissionError("Access denied")
+
+        response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Permission Denied", response.json()["detail"])
+
+    @patch("ecip_core.api.routes.indexing.Path")
+    @patch("ecip_core.api.routes.indexing.ProjectScanner")
+    def test_indexing_pipeline_failure_500(self, mock_scanner_class, mock_path_class):
+        mock_path = mock_path_class.return_value
+        mock_path.exists.return_value = True
+        mock_path.is_dir.return_value = True
+        mock_path.resolve.return_value = mock_path
+
+        mock_scanner = mock_scanner_class.return_value
+        mock_scanner.scan.side_effect = RuntimeError("Scanner crashed")
+
+        response = self.client.post("/index", json={"project_path": "/projects/sample", "project_alias": "sample"})
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("Failed to scan directory", response.json()["detail"])
 
 
 if __name__ == "__main__":
