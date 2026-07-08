@@ -422,3 +422,97 @@ class JavaRepository:
         except Exception as e:
             logger.error("Database failure")
             raise e
+
+    def save_project(
+        self,
+        project_id: str,
+        alias: str,
+        root_path: str,
+        indexed_at: str,
+        indexed_files: int,
+        total_chunks: int,
+        total_vectors: int,
+        status: str
+    ):
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO projects (
+                    project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status)
+            )
+            self.connection.commit()
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def get_projects(self) -> list[dict]:
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status FROM projects")
+            rows = cursor.fetchall()
+            return [
+                {
+                    "project_id": r[0],
+                    "alias": r[1],
+                    "root_path": r[2],
+                    "indexed_at": r[3],
+                    "indexed_files": r[4],
+                    "total_chunks": r[5],
+                    "total_vectors": r[6],
+                    "status": r[7]
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def get_project(self, project_id: str) -> dict | None:
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "SELECT project_id, alias, root_path, indexed_at, indexed_files, total_chunks, total_vectors, status FROM projects WHERE project_id = ?",
+                (project_id,)
+            )
+            r = cursor.fetchone()
+            if r:
+                return {
+                    "project_id": r[0],
+                    "alias": r[1],
+                    "root_path": r[2],
+                    "indexed_at": r[3],
+                    "indexed_files": r[4],
+                    "total_chunks": r[5],
+                    "total_vectors": r[6],
+                    "status": r[7]
+                }
+            return None
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+    def delete_project(self, project_id: str):
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT root_path FROM projects WHERE project_id = ?", (project_id,))
+            row = cursor.fetchone()
+            if row:
+                root_path = row[0]
+                
+                cursor.execute("SELECT id FROM java_files WHERE file_path LIKE ?", (root_path + "%",))
+                file_ids = [r[0] for r in cursor.fetchall()]
+                
+                if file_ids:
+                    placeholders = ",".join("?" for _ in file_ids)
+                    cursor.execute(f"DELETE FROM java_methods WHERE file_id IN ({placeholders})", tuple(file_ids))
+                    cursor.execute("DELETE FROM java_files WHERE file_path LIKE ?", (root_path + "%",))
+                
+                cursor.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
+                self.connection.commit()
+        except Exception as e:
+            logger.error("Database failure")
+            raise e

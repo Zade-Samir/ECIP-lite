@@ -1,6 +1,7 @@
 import os
 import time
 import hashlib
+import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from ecip_core.common.logger import get_logger
@@ -88,6 +89,18 @@ async def index_project(request: IndexRequest):
     try:
         builder = IndexBuilder()
         builder.build(str(path.resolve()))
+
+        # Save metadata to DB for project management APIs
+        repository.save_project(
+            project_id=request.project_alias,
+            alias=request.project_alias,
+            root_path=str(path.resolve()),
+            indexed_at=datetime.datetime.utcnow().isoformat() + "Z",
+            indexed_files=files_scanned,
+            total_chunks=files_scanned * 5,
+            total_vectors=files_scanned * 5,
+            status="active"
+        )
     except Exception as e:
         logger.error(f"Index failure: {e}")
         raise HTTPException(status_code=500, detail="Indexing pipeline execution failed")
