@@ -49,6 +49,11 @@ class TestIntentAnalyzer(unittest.TestCase):
         self.assertEqual(result.intent, "semantic_question")
         self.assertIn("how is", result.matched_patterns)
 
+    def test_general_concept_fallback(self):
+        result = self.analyzer.analyze("what is java?")
+        self.assertEqual(result.intent, "semantic_question")
+        self.assertIn("what is", result.matched_patterns)
+
     def test_unknown_intent_for_garbage(self):
         result = self.analyzer.analyze("xyzabc blahblah")
         self.assertEqual(result.intent, "unknown")

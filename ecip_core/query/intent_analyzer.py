@@ -18,9 +18,9 @@ class IntentAnalyzer:
                 "explain_code",
                 [
                     r"\b(?:explain|describe|overview of|summarize|what is|how does)\s+(?:class|file|interface|enum|module|code)\b",
-                    r"\b(?:explain|describe|overview of|summarize)\s+[A-Z][a-zA-Z0-9_]*\b",
+                    r"\b(?:explain|describe|overview of|summarize|what is)\s+[A-Z][a-zA-Z0-9_]*\b",
                 ],
-                ["explain", "describe", "overview", "summarize", "what is", "about class", "explain class"],
+                ["explain", "describe", "overview", "summarize", "about class", "explain class"],
                 0.8
             ),
             (
@@ -71,10 +71,10 @@ class IntentAnalyzer:
             (
                 "semantic_question",
                 [
-                    r"\b(?:how to|how do we|how does|why does|what happens when|explain how)\b",
+                    r"\b(?:how to|how do we|how does|why does|what happens when|explain how|what is)\b",
                     r"\b(?:handled|implemented|configured|designed)\b",
                 ],
-                ["how to", "how do we", "why does", "what happens when", "how is", "how do I"],
+                ["how to", "how do we", "why does", "what happens when", "how is", "how do I", "what is"],
                 0.6
             )
         ]
@@ -107,8 +107,12 @@ class IntentAnalyzer:
             matched_patterns = []
 
             for pattern in patterns:
-                if re.search(pattern, normalized, re.IGNORECASE):
-                    matched_patterns.append(pattern)
+                if "[A-Z]" in pattern:
+                    if re.search(pattern, query):
+                        matched_patterns.append(pattern)
+                else:
+                    if re.search(pattern, query, re.IGNORECASE):
+                        matched_patterns.append(pattern)
 
             for keyword in keywords:
                 if keyword in normalized:
