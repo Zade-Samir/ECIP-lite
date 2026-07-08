@@ -7,7 +7,7 @@ def custom_connect(*args, **kwargs):
 sqlite3.connect = custom_connect
 
 from fastapi import FastAPI
-from ecip_core.api.routes import query
+from ecip_core.api.routes import query_router, indexing_router
 
 app = FastAPI(
     title="ECIP Lite API",
@@ -16,7 +16,8 @@ app = FastAPI(
 )
 
 # Register routes
-app.include_router(query.router, tags=["Query"])
+app.include_router(query_router, tags=["Query"])
+app.include_router(indexing_router, tags=["Index"])
 
 
 @app.get("/health", tags=["System"])
