@@ -6,6 +6,11 @@ It indexes your project locally, understands the structure of your code, and let
 
 > 🔒 **100% local. No cloud. No API keys. No data leaves your machine.**
 
+[![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/Zade-Samir/ECIP-lite/releases/tag/v1.0.0)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-255%20passing-brightgreen)](scripts/run_release_validation.py)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+
 ---
 
 ## 🎯 What Problem Does It Solve?
@@ -13,7 +18,8 @@ It indexes your project locally, understands the structure of your code, and let
 When you join a new project or work on a large codebase, it's hard to:
 - Understand what a service does without reading 1000 lines
 - Find which classes depend on each other
-- Know which method handles a specific feature
+- Know which method handles a specific API endpoint
+- Trace what breaks if you change a shared class
 
 ECIP Lite answers these questions using local AI — like having a senior developer who has read the entire codebase explain it to you.
 
@@ -30,9 +36,18 @@ ECIP Lite answers these questions using local AI — like having a senior develo
 | ⚡ **Incremental Indexing** | Only re-indexes files that actually changed |
 | 💾 **Persistent FAISS Index** | Vector index survives restarts — no re-indexing needed |
 | 🔄 **Batch Embedding** | Processes multiple chunks in one API call — faster indexing |
-| 🔌 **Provider Abstraction** | Swap embedding backends without changing the pipeline |
-| 🧠 **Semantic Search** | Find the right method/class using natural language |
-| 🔑 **Spring Boot Support** | Understands `@RestController`, `@Service`, `@Repository`, constructor injection |
+| 🔌 **Provider Abstraction** | Swap embedding/LLM backends without changing the pipeline |
+| 🧠 **Hybrid Retrieval** | Exact metadata match + semantic vector search, merged and ranked |
+| 🎯 **Intent Analyzer** | Understands what you're asking and routes retrieval intelligently |
+| 🕸️ **Dependency Graph** | Tracks class-to-class dependencies and usage relationships |
+| 💥 **Impact Analysis** | Shows which classes break if you change a given class |
+| 📎 **Source Citations** | Every LLM answer is linked to exact `file:line` source references |
+| 🔬 **Diagnostics** | 9-check system health validation — detects drift before it hurts |
+| 🗂️ **Multi-Workspace** | Index and query multiple projects simultaneously, fully isolated |
+| 🚀 **REST API** | FastAPI HTTP interface for all operations |
+| 📊 **Performance Metrics** | Timing instrumentation across every pipeline stage |
+| 🗄️ **Caching** | In-memory + disk cache with TTL and hit/miss stats |
+| 📝 **Structured Logging** | Request-scoped correlation IDs, file rotation, JSON-compatible |
 
 ---
 
@@ -42,35 +57,48 @@ ECIP Lite answers these questions using local AI — like having a senior develo
 Java Project
       │
       ▼
-Project Scanner          ← Finds all .java files
+Project Scanner          ← Finds all .java files (recursive)
       │
       ▼
-AST Parser (javalang)    ← Parses classes, methods, annotations
+AST Parser (javalang)    ← Classes, methods, annotations, constructors
+      │
+      ├──────────────────────────────────────────┐
+      ▼                                          ▼
+SQLite Metadata Store                    Dependency Graph
+(classes, methods, edges)                (class relationships)
       │
       ▼
-SQLite Metadata Store    ← Persists structural metadata
+Smart Java Chunker        ← Method-level + class overview chunks
       │
       ▼
-Java Chunker             ← Method-level + class overview chunks
+Embedding Service         ← nomic-embed-text via Ollama (batch)
       │
       ▼
-Embedding Service        ← nomic-embed-text via Ollama (batch)
+FAISS Vector Store        ← Persistent local vector index
       │
       ▼
-FAISS Vector Store       ← Persistent local vector index
+Hybrid Retrieval          ← Metadata match + semantic search, ranked
+      │
+      ├──────────────────┐
+      ▼                  ▼
+Context Builder     Intent Analyzer     ← Understand query intent
       │
       ▼
-Semantic Retrieval       ← Top-K similarity search
+Prompt Builder           ← Structured prompt with code context
       │
       ▼
-LLM (Ollama)             ← Answers your question with context
+Inference Service         ← Ollama LLM (streaming/sync)
+      │
+      ▼
+Citation Engine           ← Validates answer → file:line links
+      │
+      ▼
+Response Formatter        ← CLI output or API JSON response
 ```
 
 ---
 
 ## 🛠️ Prerequisites
-
-Before you start, install these:
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
@@ -116,47 +144,91 @@ pip install -r requirements.txt
 
 ### 4. Configure environment
 
-Copy the example config and edit it:
-
 ```bash
 cp .env.example .env
 ```
 
-Or create `.env` manually:
+Edit `.env` with your Ollama URL and model names. Key settings:
 
 ```env
-# Ollama server URL
 OLLAMA_BASE_URL=http://localhost:11434
-
-# LLM model for Q&A
 MODEL_NAME=qwen3.5:9b
-
-# Embedding model
 EMBEDDING_MODEL=nomic-embed-text
-
-# Embedding vector dimensions (must match the model)
 EMBEDDING_DIMENSION=768
-
-# Batch size for embedding generation
-EMBEDDING_BATCH_SIZE=8
-
-# Generation settings
-TEMPERATURE=0.2
-TOP_P=0.9
-MAX_TOKENS=4096
-STREAM=false
-
-# System prompt
-SYSTEM_PROMPT="You are ECIP, an expert Java and Spring Boot Architect."
 ```
 
-### 5. Run the assistant
+### 5. Add your Java project
+
+Place your Java project under the `projects/` directory:
 
 ```bash
+cp -r /path/to/your/spring-boot-project projects/myproject
+```
+
+### 6. Index your project (CLI)
+
+```bash
+# Register and index your project
 python -m ecip_core.main
 ```
 
-Type your question and press Enter. Type `exit` or `quit` to stop.
+On first run, ECIP Lite will automatically scan and index the configured project.
+
+### 7. Query your codebase
+
+```bash
+Ask ECIP > What does UserService do?
+Ask ECIP > Which classes use UserRepository?
+Ask ECIP > What happens if I change UserRepository?
+Ask ECIP > Show me the REST endpoints in UserController
+```
+
+---
+
+## 🌐 REST API
+
+Start the API server:
+
+```bash
+python run_api.py
+```
+
+The API is now running at `http://localhost:8000`.
+
+### Key Endpoints
+
+```bash
+# Index a project
+POST /api/v1/index
+{
+  "project_path": "projects/myproject"
+}
+
+# Query the codebase
+POST /api/v1/query
+{
+  "question": "What does UserService do?"
+}
+
+# List workspaces
+GET /api/v1/workspaces
+
+# Create a workspace
+POST /api/v1/workspaces
+{
+  "project_id": "my_project",
+  "alias": "My Spring Boot App",
+  "root_path": "projects/myproject"
+}
+
+# Switch active workspace
+PUT /api/v1/workspaces/{project_id}/activate
+
+# Run diagnostics
+GET /api/v1/diagnostics
+```
+
+> Interactive API docs are at `http://localhost:8000/docs` (Swagger UI).
 
 ---
 
@@ -167,25 +239,51 @@ ecip-lite/
 │
 ├── ecip_core/
 │   ├── scanner/          ← Project file scanner
-│   ├── parser/
-│   │   ├── java/         ← AST-based Java parser
-│   │   └── models/       ← ParsedJavaFile, MethodInfo domain models
+│   ├── parser/           ← AST-based Java parser
 │   ├── chunking/         ← Method-level + class overview chunking
-│   ├── embedding/
-│   │   ├── providers/    ← OllamaEmbeddingProvider (swappable)
-│   │   └── models/       ← Embedding model
+│   ├── embedding/        ← Embedding service + Ollama provider
 │   ├── vectorstore/      ← Persistent FAISS index
-│   ├── storage/
-│   │   └── sqlite/       ← SQLite repository + database setup
+│   ├── storage/sqlite/   ← SQLite repository + database setup
 │   ├── indexing/         ← IndexBuilder (incremental pipeline)
-│   ├── retrieval/        ← Semantic search service
-│   ├── inference/        ← LLM inference + settings
-│   └── common/           ← Shared logger, utilities
+│   ├── retrieval/        ← Hybrid retrieval, semantic search, context
+│   ├── query/            ← Intent analyzer, entity extractor
+│   ├── prompt/           ← Prompt builder
+│   ├── inference/        ← LLM inference service + providers
+│   ├── dependency/       ← Dependency graph + impact analysis
+│   ├── citations/        ← Citation engine
+│   ├── workspace/        ← Multi-project workspace manager
+│   ├── diagnostics/      ← System health diagnostics
+│   ├── cache/            ← Multi-level cache manager
+│   ├── metrics/          ← Performance metrics collector
+│   ├── logging/          ← Structured logging + correlation IDs
+│   ├── api/              ← FastAPI REST API
+│   ├── output/           ← Response formatter
+│   ├── coordinator/      ← Query coordinator (pipeline orchestrator)
+│   └── main.py           ← CLI entry point
 │
-├── tests/                ← Unit + integration tests
-├── prompts/              ← Implementation playbook
-├── requirements.txt
-└── .env
+├── tests/
+│   ├── e2e/              ← End-to-end pipeline tests
+│   ├── integration/      ← Integration tests
+│   └── test_*.py         ← Unit tests per module
+│
+├── scripts/
+│   └── run_release_validation.py  ← Pre-release gate (all 255 tests)
+│
+├── docs/
+│   ├── RELEASE_CHECKLIST.md
+│   ├── USER_GUIDE.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── DEVELOPER_GUIDE.md
+│   └── ARCHITECTURE.md
+│
+├── projects/             ← Place your Java projects here
+├── .env.example          ← Configuration template
+├── requirements.txt      ← Python dependencies
+├── run_api.py            ← API server entry point
+├── CHANGELOG.md
+├── RELEASE_NOTES.md
+├── CONTRIBUTING.md
+└── LICENSE
 ```
 
 ---
@@ -193,80 +291,65 @@ ecip-lite/
 ## 🧪 Running Tests
 
 ```bash
-# Activate virtual environment first
-source .venv/bin/activate
+# Run full release validation suite (recommended)
+python scripts/run_release_validation.py
 
-# Run all tests
-python -m unittest discover tests/
+# Run all unit tests
+python -m unittest discover tests/ -v
 
-# Run a specific test file
+# Run specific test files
 python -m unittest tests/test_parser.py -v
 python -m unittest tests/test_faiss_store.py -v
-python -m unittest tests/test_embedding.py -v
-python -m unittest tests/test_index_builder.py -v
+python -m unittest tests/e2e/test_e2e_pipeline.py -v
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how to get started:
-
-### 1. Fork and clone
-
-```bash
-git clone https://github.com/<your-username>/ECIP-lite.git
-cd ecip-lite
-```
-
-### 2. Create a feature branch
-
-```bash
-git checkout -b feat/your-feature-name
-```
-
-### 3. Make changes and run tests
-
-```bash
-python -m unittest discover tests/
-```
-
-All tests must pass before submitting a PR.
-
-### 4. Open a Pull Request
-
-- Describe what you changed and why
-- Link any related issues
-- Keep PRs focused — one feature or fix per PR
-
-### Areas open for contribution
-
-- 🌐 Support for other languages (Python, JavaScript, Go)
-- 🔌 New embedding providers (OpenAI, llama.cpp, LM Studio)
-- 🖥️ REST API / Web UI
-- 📊 Dependency graph visualization
-- 📝 Better prompt engineering
-- 🔒 Security & access control features
 
 ---
 
 ## 📋 Roadmap
 
-- [x] Project Scanner
+### v1.0.0 ✅ (Released)
 - [x] AST-Based Java Parser
-- [x] Spring Boot Annotation Extraction
 - [x] SQLite Metadata Store
 - [x] Method-Level Chunking
 - [x] Local Embedding Pipeline (Ollama)
 - [x] Incremental Indexing
 - [x] Persistent FAISS Index
 - [x] Batch Embedding Processing
-- [x] Embedding Provider Abstraction
-- [ ] Semantic Search Service
-- [ ] REST API (FastAPI)
-- [ ] Web UI
-- [ ] Dependency Graph
-- [ ] Multi-language Support
+- [x] Semantic Search
+- [x] Hybrid Retrieval (metadata + semantic)
+- [x] Intent Analyzer
+- [x] REST API (FastAPI)
+- [x] Dependency Graph
+- [x] Impact Analysis
+- [x] Source Citations
+- [x] Multi-Project Workspace Management
+- [x] Diagnostics System
+- [x] Performance Metrics
+- [x] Multi-Level Caching
+- [x] Structured Logging
+- [x] End-to-End Test Suite (255 tests)
+
+### v1.1 (Planned)
+- [ ] Python language support
+- [ ] Web UI (browser-based query interface)
+- [ ] OpenAI / LM Studio embedding provider
+- [ ] Dependency graph visualization
+
+### v1.2 (Future)
+- [ ] Multi-user support
+- [ ] Docker deployment
+- [ ] Go / JavaScript language support
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup
+- Branch naming conventions
+- Commit message format
+- Pull request process
+- Testing requirements
 
 ---
 
@@ -278,7 +361,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fo
 
 ## 🙋 Author
 
-**Samir Zade**
+**Samir Zade**  
 Building ECIP Lite as part of my #BuildInPublic journey.
 
 Follow the progress on [LinkedIn](https://www.linkedin.com/in/samir-zade/)
