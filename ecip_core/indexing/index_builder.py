@@ -9,6 +9,7 @@ from ecip_core.chunking.java_chunker import JavaChunker
 from ecip_core.embedding.embedding_service import EmbeddingService
 from ecip_core.vectorstore.faiss_store import FAISSStore
 from ecip_core.embedding.models.embedding import Embedding
+from ecip_core.dependency.graph_builder import DependencyGraphBuilder
 
 from ecip_core.common.logger import get_logger
 
@@ -27,12 +28,15 @@ class IndexBuilder:
         self.repository = JavaRepository()
         self.chunker = JavaChunker()
         self.embedding_service = EmbeddingService()
+        self.graph_builder = DependencyGraphBuilder()
         # FAISSStore is initialized without paths here; paths are set per build()
         self.faiss_store: FAISSStore | None = None
 
-    def build(self, project_path: str) -> FAISSStore:
+    def build(self, project_path: str, project_id: str = None) -> FAISSStore:
         start_time = time.perf_counter()
         logger.info("Index started")
+
+        project_id = project_id or Path(project_path).name
 
         ecip_dir = Path(project_path) / ".ecip"
         index_path = str(ecip_dir / "faiss.index")
@@ -51,6 +55,7 @@ class IndexBuilder:
             raise e
 
         logger.info(f"Found {len(java_files)} Java files")
+        project_classes = {Path(f).stem for f in java_files}
 
         stats = {
             "skipped": 0,
@@ -82,6 +87,7 @@ class IndexBuilder:
         deleted_file_paths = [p for p in db_file_paths if p not in active_files]
         for p in deleted_file_paths:
             self.repository.delete_by_file_path(p)
+            self.repository.delete_class_edges(project_id, Path(p).stem)
             self.faiss_store.remove_file(p)
             stats["removed"] += 1
 
@@ -114,6 +120,9 @@ class IndexBuilder:
 
                 # Save metadata and file_hash in database
                 self.repository.save(parsed, file_hash=curr_hash)
+
+                # Build class dependency edges
+                self.graph_builder.build_class_edges(project_id, parsed, project_classes)
 
                 # Re-chunk changed file
                 try:

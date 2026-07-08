@@ -70,6 +70,18 @@ class Database:
         );
         """)
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS dependency_edges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT,
+            source_class TEXT,
+            target_class TEXT,
+            relationship_type TEXT,
+            discovered_at TEXT,
+            UNIQUE(project_id, source_class, target_class, relationship_type)
+        );
+        """)
+
         self.connection.commit()
 
     def get_connection(self):
