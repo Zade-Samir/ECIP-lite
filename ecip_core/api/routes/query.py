@@ -1,0 +1,99 @@
+import time
+from fastapi import APIRouter, HTTPException, Depends
+from ecip_core.common.logger import get_logger
+from ecip_core.api.models.query import QueryRequest, QueryResponse, CitationModel
+from ecip_core.models.request import InferenceRequest
+from ecip_core.coordinator.query_coordinator import QueryCoordinator
+from ecip_core.storage.sqlite.repository import JavaRepository
+
+logger = get_logger(__name__)
+
+router = APIRouter()
+
+_coordinator = None
+
+
+def get_coordinator() -> QueryCoordinator:
+    global _coordinator
+    if _coordinator is None:
+        _coordinator = QueryCoordinator()
+    return _coordinator
+
+
+@router.post("/query", response_model=QueryResponse)
+async def query_pipeline(
+    request: QueryRequest,
+    coordinator: QueryCoordinator = Depends(get_coordinator)
+):
+    logger.info("Request received")
+
+    # 1. Input validations
+    if not request.question or not request.question.strip():
+        logger.warning("Empty question")
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    if not request.project_id or not request.project_id.strip():
+        logger.warning("Unknown project")
+        raise HTTPException(status_code=400, detail="Project ID cannot be empty")
+
+    # 2. Resolve project name
+    valid_projects = {"sample-project", "default"}
+    if request.project_id not in valid_projects:
+        logger.warning(f"Unknown project: {request.project_id}")
+        raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+
+    # Verify project index is not empty
+    try:
+        repo = JavaRepository()
+        files = repo.get_all_file_paths()
+        if not files:
+            logger.warning("No indexed project")
+            raise HTTPException(status_code=404, detail="No indexed project found in database")
+        logger.info("Project resolved")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Pipeline failure: database lookup error: {e}")
+        raise HTTPException(status_code=500, detail="Database access error")
+
+    # 3. Execute QA pipeline
+    start_time = time.perf_counter()
+    try:
+        inference_req = InferenceRequest(question=request.question)
+        coordinator_res = coordinator.process(inference_req)
+    except ConnectionError as e:
+        logger.error(f"Provider unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
+    except TimeoutError as e:
+        logger.error(f"Pipeline failure: inference timeout: {e}")
+        raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
+    except Exception as e:
+        logger.error(f"Unexpected exception: {e}")
+        logger.error(f"Pipeline failure: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    logger.info("Query completed")
+
+    # Map citations
+    citations = []
+    if coordinator_res.citations:
+        for c in coordinator_res.citations:
+            citations.append(
+                CitationModel(
+                    file_path=c.file_path,
+                    class_name=c.class_name,
+                    method_name=c.method_name,
+                    start_line=c.start_line,
+                    end_line=c.end_line
+                )
+            )
+
+    response = QueryResponse(
+        answer=coordinator_res.answer,
+        citations=citations,
+        model_name=coordinator_res.model,
+        duration_ms=duration_ms
+    )
+    logger.info("Response returned")
+    return response
