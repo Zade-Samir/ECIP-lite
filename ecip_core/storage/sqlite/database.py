@@ -57,6 +57,19 @@ class Database:
         );
         """)
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            project_id TEXT PRIMARY KEY,
+            alias TEXT,
+            root_path TEXT UNIQUE,
+            indexed_at TEXT,
+            indexed_files INTEGER,
+            total_chunks INTEGER,
+            total_vectors INTEGER,
+            status TEXT
+        );
+        """)
+
         self.connection.commit()
 
     def get_connection(self):
