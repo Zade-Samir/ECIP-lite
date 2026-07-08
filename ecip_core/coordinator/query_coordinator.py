@@ -105,6 +105,8 @@ class QueryCoordinator:
         Orchestrates intent analysis, entity extraction, hybrid retrieval,
         context building, prompt generation, inference, and citations.
         """
+        from ecip_core.metrics import metrics_collector
+        metrics_collector.start_timer("total_request_duration")
         try:
             # 1. Normalize request
             question = request.question.strip() if request.question else ""
@@ -112,6 +114,7 @@ class QueryCoordinator:
 
             if not question:
                 logger.warning("Empty query received")
+                metrics_collector.stop_timer("total_request_duration")
                 return CoordinatorResponse(
                     answer="",
                     model=settings.MODEL_NAME,
@@ -122,17 +125,23 @@ class QueryCoordinator:
 
             # 2. Invoke Intent Analyzer
             try:
+                metrics_collector.start_timer("intent_analysis_duration")
                 intent_res = self.intent_analyzer.analyze(question)
+                metrics_collector.stop_timer("intent_analysis_duration")
                 logger.info(f"Intent detected: {intent_res.intent}")
             except Exception as e:
+                metrics_collector.stop_timer("intent_analysis_duration")
                 logger.error(f"Service failure in IntentAnalyzer: {e}")
                 raise
 
             # 3. Invoke Entity Extractor
             try:
+                metrics_collector.start_timer("entity_extraction_duration")
                 entities = self.entity_extractor.extract_entities(question)
+                metrics_collector.stop_timer("entity_extraction_duration")
                 logger.info(f"Entities extracted: {len(entities)}")
             except Exception as e:
+                metrics_collector.stop_timer("entity_extraction_duration")
                 logger.error(f"Service failure in EntityExtractor: {e}")
                 raise
 
@@ -145,11 +154,13 @@ class QueryCoordinator:
 
                 try:
                     if intent_res.intent == "impact_analysis":
+                        metrics_collector.start_timer("graph_analysis_duration")
                         report = self.impact_engine.analyze(
                             target_class=target_class,
                             depth=3,
                             project_id=project_id
                         )
+                        metrics_collector.stop_timer("graph_analysis_duration")
                         if report.total_affected == 0:
                             logger.warning("Empty graph result")
                             graph_summary = f"No classes are affected by changes to '{target_class}'."
@@ -161,10 +172,12 @@ class QueryCoordinator:
                         logger.info("Graph analysis executed")
 
                     else:  # dependency_analysis
+                        metrics_collector.start_timer("graph_analysis_duration")
                         relationships = self.dependency_service.get_relationships(
                             class_name=target_class,
                             project_id=project_id
                         )
+                        metrics_collector.stop_timer("graph_analysis_duration")
                         if not relationships:
                             logger.warning("Empty graph result")
                             graph_summary = f"No dependency relationships found for '{target_class}'."
@@ -184,8 +197,11 @@ class QueryCoordinator:
                 # Summarize graph facts via LLM
                 try:
                     logger.info("Prompt generated")
+                    metrics_collector.start_timer("inference_latency")
                     inference_res = self.inference.ask(request, context=graph_summary)
+                    metrics_collector.stop_timer("inference_latency")
                 except Exception as e:
+                    metrics_collector.stop_timer("inference_latency")
                     logger.error(f"Inference failure: {e}")
                     raise
 
@@ -196,6 +212,7 @@ class QueryCoordinator:
                     entities=entities,
                     citations=[]
                 )
+                metrics_collector.stop_timer("total_request_duration")
                 logger.info("Response returned")
                 return response
 
@@ -205,9 +222,12 @@ class QueryCoordinator:
 
                 # Execute Hybrid Retrieval
                 try:
+                    metrics_collector.start_timer("retrieval_latency")
                     retrieved_results = self.hybrid_retrieval.retrieve(question)
+                    metrics_collector.stop_timer("retrieval_latency")
                     logger.info(f"Retrieval completed: {len(retrieved_results)}")
                 except Exception as e:
+                    metrics_collector.stop_timer("retrieval_latency")
                     logger.error(f"Service failure in HybridRetrieval: {e}")
                     raise
 
@@ -218,7 +238,9 @@ class QueryCoordinator:
 
                 # Build Context
                 try:
+                    metrics_collector.start_timer("context_building_duration")
                     context = self.context_builder.build(question)
+                    metrics_collector.stop_timer("context_building_duration")
                     if not context.strip() and retrieved_results:
                         context_parts = ["Project Context:"]
                         for r in retrieved_results:
@@ -230,14 +252,18 @@ class QueryCoordinator:
                             )
                         context = "\n".join(context_parts)
                 except Exception as e:
+                    metrics_collector.stop_timer("context_building_duration")
                     logger.error(f"Service failure in ContextBuilder: {e}")
                     raise
 
                 # Execute inference
                 try:
                     logger.info("Prompt generated")
+                    metrics_collector.start_timer("inference_latency")
                     inference_res = self.inference.ask(request, context=context)
+                    metrics_collector.stop_timer("inference_latency")
                 except Exception as e:
+                    metrics_collector.stop_timer("inference_latency")
                     logger.error(f"Inference failure: {e}")
                     raise
 
@@ -254,9 +280,11 @@ class QueryCoordinator:
                     entities=entities,
                     citations=citations
                 )
+                metrics_collector.stop_timer("total_request_duration")
                 logger.info("Response returned")
                 return response
 
         except Exception as e:
+            metrics_collector.stop_timer("total_request_duration")
             logger.error(f"Unexpected pipeline error: {e}")
             raise
