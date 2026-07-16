@@ -100,7 +100,9 @@ class QueryCoordinator:
             logger.error(f"Service failure during initialization: {e}")
             raise
 
-    def process(self, request: InferenceRequest) -> CoordinatorResponse:
+    from typing import Callable
+
+    def process(self, request: InferenceRequest, callback: Callable[[str], None] = None) -> CoordinatorResponse:
         """
         Orchestrates intent analysis, entity extraction, hybrid retrieval,
         context building, prompt generation, inference, and citations.
@@ -198,7 +200,7 @@ class QueryCoordinator:
                 try:
                     logger.info("Prompt generated")
                     metrics_collector.start_timer("inference_latency")
-                    inference_res = self.inference.ask(request, context=graph_summary)
+                    inference_res = self.inference.ask(request, context=graph_summary, callback=callback)
                     metrics_collector.stop_timer("inference_latency")
                 except Exception as e:
                     metrics_collector.stop_timer("inference_latency")
@@ -260,7 +262,7 @@ class QueryCoordinator:
                 try:
                     logger.info("Prompt generated")
                     metrics_collector.start_timer("inference_latency")
-                    inference_res = self.inference.ask(request, context=context)
+                    inference_res = self.inference.ask(request, context=context, callback=callback)
                     metrics_collector.stop_timer("inference_latency")
                 except Exception as e:
                     metrics_collector.stop_timer("inference_latency")

@@ -170,3 +170,47 @@ class ResponseFormatter:
         parts.append(f"\n{self._dim}{_DIVIDER}{self._reset}\n")
 
         return "\n".join(parts)
+
+    def format_stream_footer(
+        self,
+        response: CoordinatorResponse,
+        duration_ms: float,
+        warnings: Optional[List[str]] = None
+    ) -> str:
+        """
+        Formats only the citations, warnings, and execution metrics.
+        Used when the main answer text has already been streamed.
+        """
+        logger.info("Formatting stream footer started")
+        citations_text = self._format_citations(response.citations)
+        parts = []
+
+        # ── Warnings ──────────────────────────────────────────────────────
+        if warnings:
+            parts.append(self._section("⚠  Warnings"))
+            for w in warnings:
+                parts.append(f"  {self._yellow}• {w}{self._reset}")
+
+        # ── Citations ─────────────────────────────────────────────────────
+        parts.append(self._section("📎 Citations"))
+        if citations_text:
+            for line in citations_text:
+                parts.append(f"  {self._green}▸{self._reset} {line}")
+        else:
+            parts.append(f"  {self._dim}(no source citations){self._reset}")
+
+        # ── Execution Stats ───────────────────────────────────────────────
+        parts.append(self._section("⚙  Execution"))
+        parts.append(f"  Model            : {self._bold}{response.model}{self._reset}")
+        intent = response.intent.intent if response.intent else ""
+        parts.append(f"  Intent           : {intent}")
+        duration_label = (
+            f"{duration_ms:.0f} ms" if duration_ms < 1000
+            else f"{duration_ms/1000:.2f} s"
+        )
+        parts.append(f"  Duration         : {duration_label}")
+        parts.append(f"  Retrieved chunks : {len(response.citations)}")
+        parts.append(f"\n{self._dim}{_DIVIDER}{self._reset}\n")
+
+        logger.info("Formatting stream footer completed")
+        return "\n".join(parts)

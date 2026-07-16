@@ -69,7 +69,7 @@ class DependencyGraphBuilder:
                 depends_on_targets.update(constructor.injected_dependency_types)
 
         for dep in parsed_file.dependencies:
-            if dep.injection_type == "CONSTRUCTOR":
+            if dep.injection_type in {"CONSTRUCTOR", "FIELD"}:
                 depends_on_targets.add(dep.target_class)
 
         for target in sorted(depends_on_targets):
