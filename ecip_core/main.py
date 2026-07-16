@@ -24,17 +24,26 @@ def main():
 
         request = InferenceRequest(question=question)
 
+        print(f"\nQ: {question}")
+        print("─" * 60)
+        print()
+
         t0 = time.monotonic()
-        response = coordinator.process(request)
+        
+        # Callback to print each token as it is generated
+        def token_callback(token: str):
+            print(token, end="", flush=True)
+
+        response = coordinator.process(request, callback=token_callback)
+        print()  # Add a newline when the stream finishes
         duration_ms = (time.monotonic() - t0) * 1000
 
-        formatted = formatter.format(
+        # Render only the citations, warnings, and execution footer
+        rendered_footer = formatter.format_stream_footer(
             response=response,
-            question=question,
             duration_ms=duration_ms
         )
-
-        print(formatted.rendered)
+        print(rendered_footer)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ with patch("ecip_core.coordinator.query_coordinator.FAISSStore"), \
     ]
     mock_ctx_cls.return_value.build.return_value = "Project context string"
     mock_inf_cls.return_value.ask.return_value = InferenceResponse(
-        answer="This is a mock answer about UserService.", model="qwen3.5:9b"
+        answer="This is a mock answer about UserService.", model="qwen2.5-coder:3b"
     )
 
     # Import QueryCoordinator and MetricsCollector

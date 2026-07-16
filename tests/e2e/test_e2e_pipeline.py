@@ -110,7 +110,7 @@ class TestE2EPipeline(unittest.TestCase):
         mock_generate.return_value = InferenceResponse(
             answer="This is a mock response from Ollama explaining UserRepository details.",
             citations=[],
-            model_name="qwen3.5:9b",
+            model_name="qwen2.5-coder:3b",
             provider_name="ollama",
             inference_time_ms=10,
             prompt_tokens=10,

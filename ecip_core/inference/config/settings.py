@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     OLLAMA_BASE_URL: str = "http://localhost:11434"
 
-    MODEL_NAME: str = "qwen3.5:9b"
+    MODEL_NAME: str = "qwen2.5-coder:3b"
 
     TEMPERATURE: float = 0.2
 

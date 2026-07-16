@@ -36,7 +36,7 @@
 
 ```bash
 ollama pull nomic-embed-text   # embedding model
-ollama pull qwen3.5:9b         # or any chat model you prefer
+ollama pull qwen2.5-coder:3b         # or any chat model you prefer
 ```
 
 Ollama must be running before starting ECIP Lite.

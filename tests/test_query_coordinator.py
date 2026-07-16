@@ -90,7 +90,7 @@ class TestQueryCoordinator(unittest.TestCase):
         self.mock_extractor.extract_entities.assert_called_once_with("explain UserService")
         self.mock_retrieval.retrieve.assert_called_once_with("explain UserService")
         self.mock_context.build.assert_called_once_with("explain UserService")
-        self.mock_inference.ask.assert_called_once_with(req, context="Project context mock")
+        self.mock_inference.ask.assert_called_once_with(req, context="Project context mock", callback=None)
 
     def test_empty_query_handling(self):
         req = InferenceRequest(question="")
