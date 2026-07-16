@@ -120,7 +120,7 @@ When you ask a question (like *"What does UserService do?"*):
    - Merges and ranks the results, prioritizing exact metadata matches.
 4. **Context Building**: Fetches the actual code snippets/chunks of the top-ranked files and organizes them.
 5. **Prompt Assembly**: Injects the code context, rules, and question into a structured system prompt.
-6. **Local LLM Inference**: Sends the prompt to Ollama's local LLM (`qwen3.5:9b`).
+6. **Local LLM Inference**: Sends the prompt to Ollama's local LLM (`qwen2.5-coder:3b`).
 7. **Citation Verification**: Matches the LLM's response content against the injected file lines to generate verified `file:line` source tags.
 8. **Formatting**: Renders a rich response showing the answer, source citations, execution metrics, and cache status.
 
@@ -140,7 +140,7 @@ When you ask a question (like *"What does UserService do?"*):
 ollama pull nomic-embed-text
 
 # LLM model (required for Q&A)
-ollama pull qwen3.5:9b
+ollama pull qwen2.5-coder:3b
 ```
 
 > You can use any Ollama-compatible model. Update `MODEL_NAME` in `.env` accordingly.
@@ -180,7 +180,7 @@ Edit `.env` with your Ollama URL and model names. Key settings:
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
-MODEL_NAME=qwen3.5:9b
+MODEL_NAME=qwen2.5-coder:3b
 EMBEDDING_MODEL=nomic-embed-text
 EMBEDDING_DIMENSION=768
 ```

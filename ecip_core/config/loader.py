@@ -49,7 +49,7 @@ class Settings(BaseSettings):
 
     # Inference Domain
     INFERENCE_PROVIDER: str = Field(default="ollama")
-    MODEL_NAME: str = Field(default="qwen3.5:9b")
+    MODEL_NAME: str = Field(default="qwen2.5-coder:3b")
     TEMPERATURE: float = Field(default=0.2)
     TOP_P: float = Field(default=0.9)
     MAX_TOKENS: int = Field(default=4096)

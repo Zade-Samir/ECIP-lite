@@ -30,7 +30,7 @@
 ```bash
 # Pull required models (one-time setup)
 ollama pull nomic-embed-text   # for indexing
-ollama pull qwen3.5:9b         # for answering questions
+ollama pull qwen2.5-coder:3b         # for answering questions
 ```
 
 ### Install ECIP Lite
@@ -60,7 +60,7 @@ The key settings you must configure:
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `OLLAMA_BASE_URL` | URL of your running Ollama server | `http://localhost:11434` |
-| `MODEL_NAME` | Chat LLM model for Q&A | `qwen3.5:9b` |
+| `MODEL_NAME` | Chat LLM model for Q&A | `qwen2.5-coder:3b` |
 | `EMBEDDING_MODEL` | Embedding model for indexing | `nomic-embed-text` |
 | `EMBEDDING_DIMENSION` | Vector dimensions (must match model) | `768` |
 

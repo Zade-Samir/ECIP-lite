@@ -56,7 +56,7 @@ ECIP Lite is a fully local, privacy-first code intelligence platform. It indexes
 ┌─────────────────────────────────────────────────────────────────┐
 │                       Ollama (Local)                           │
 │                                                                 │
-│  nomic-embed-text (embeddings)   qwen3.5:9b (LLM inference)   │
+│  nomic-embed-text (embeddings)   qwen2.5-coder:3b (LLM inference)   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

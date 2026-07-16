@@ -37,7 +37,7 @@ class TestAPI(unittest.TestCase):
 
         self.mock_coord.process.return_value = CoordinatorResponse(
             answer="Here is the class UserService.",
-            model="qwen3.5:9b",
+            model="qwen2.5-coder:3b",
             intent=IntentResult(
                 intent="explain_code", confidence=1.0, matched_patterns=["explain"], normalized_query="explain userservice"
             ),
@@ -68,7 +68,7 @@ class TestAPI(unittest.TestCase):
 
         res_json = response.json()
         self.assertEqual(res_json["answer"], "Here is the class UserService.")
-        self.assertEqual(res_json["model_name"], "qwen3.5:9b")
+        self.assertEqual(res_json["model_name"], "qwen2.5-coder:3b")
         self.assertEqual(len(res_json["citations"]), 1)
         self.assertEqual(res_json["citations"][0]["file_path"], "/src/UserService.java")
         self.assertIn("duration_ms", res_json)

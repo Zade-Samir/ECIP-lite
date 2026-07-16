@@ -26,7 +26,7 @@ class TestInferenceService(unittest.TestCase):
 
         mock_response = InferenceResponse(
             answer="Here is the class UserService.",
-            model_name="qwen3.5:9b",
+            model_name="qwen2.5-coder:3b",
             provider_name="ollama",
             inference_time_ms=1200,
             prompt_tokens=20,
@@ -67,7 +67,7 @@ class TestInferenceService(unittest.TestCase):
         self.mock_provider.validate_availability.return_value = True
         mock_response = InferenceResponse(
             answer="Legacy response.",
-            model_name="qwen3.5:9b",
+            model_name="qwen2.5-coder:3b",
             provider_name="ollama",
             inference_time_ms=500,
             prompt_tokens=0,
@@ -88,7 +88,7 @@ class TestInferenceService(unittest.TestCase):
     def test_serialization(self):
         mock_response = InferenceResponse(
             answer="Reply",
-            model_name="qwen3.5:9b",
+            model_name="qwen2.5-coder:3b",
             provider_name="ollama",
             inference_time_ms=500,
             prompt_tokens=10,

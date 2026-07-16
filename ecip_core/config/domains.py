@@ -19,7 +19,7 @@ class EmbeddingSettings(BaseModel):
 
 class InferenceSettings(BaseModel):
     provider: str = Field(default="ollama", description="Inference provider type (e.g. ollama).")
-    model: str = Field(default="qwen3.5:9b", description="Name of the LLM inference model.")
+    model: str = Field(default="qwen2.5-coder:3b", description="Name of the LLM inference model.")
     temperature: float = Field(default=0.2, description="Temperature for generation.")
     top_p: float = Field(default=0.9, description="Top-p value for generation.")
     max_tokens: int = Field(default=4096, description="Max tokens for generation.")

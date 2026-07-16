@@ -59,7 +59,7 @@ class TestStreaming(unittest.TestCase):
         res = self.service.ask(prompt)
 
         self.assertEqual(res.answer, "Sync reply")
-        self.mock_provider.generate.assert_called_once_with("test", "qwen3.5:9b", callback=None)
+        self.mock_provider.generate.assert_called_once_with("test", "qwen2.5-coder:3b", callback=None)
 
     def test_streaming_provider_disconnect_propagation(self):
         self.mock_provider.validate_availability.return_value = True
