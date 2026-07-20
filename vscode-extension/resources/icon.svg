@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+  <!-- Glowing gradient background -->
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer border -->
+  <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#glow)" stroke-width="2" fill="none"/>
+  
+  <!-- Code symbol combined with intelligence nodes -->
+  <path d="M7 8L3 12L7 16" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17 8L21 12L17 16" stroke="url(#glow)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Central intelligence core node -->
+  <circle cx="12" cy="12" r="2.5" fill="url(#glow)"/>
+  <line x1="12" y1="5" x2="12" y2="9.5" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="1 1"/>
+  <line x1="12" y1="14.5" x2="12" y2="19" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="1 1"/>
+  <line x1="5" y1="12" x2="9.5" y2="12" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="1 1"/>
+  <line x1="14.5" y1="12" x2="19" y2="12" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="1 1"/>
+</svg>
