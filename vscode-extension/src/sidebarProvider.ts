@@ -192,366 +192,266 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Chat</title>
+    <title>ECIP Lite Chat</title>
     <style>
         :root {
-            --bg-color: #181818;
-            --input-container-bg: #222222;
-            --border-color: rgba(255, 255, 255, 0.06);
-            --text-primary: #e3e3e3;
-            --text-secondary: #cbd5e1;
-            --text-muted: #8e8e8e;
-            --code-header-bg: #1e1e1e;
-            --code-body-bg: #111111;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-primary);
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             height: 100vh;
             box-sizing: border-box;
         }
 
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 2px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
         }
 
-        .header-title {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-primary);
+        .header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .header-actions {
+        .project-selector {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 12px;
             display: flex;
-            gap: 12px;
-            align-items: center;
+            flex-direction: column;
+            gap: 6px;
         }
 
-        .header-btn {
+        .project-selector label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .select-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        select {
+            flex-grow: 1;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        button.btn-icon {
             background: none;
-            border: none;
-            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 8px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            padding: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color 0.15s;
+            transition: all 0.2s ease;
         }
 
-        .header-btn:hover {
+        button.btn-icon:hover {
             color: var(--text-primary);
+            border-color: var(--text-secondary);
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
-        .active-project-container {
-            margin-bottom: 6px;
-        }
-
-        .active-project-label {
-            font-size: 15px;
-            font-weight: 600;
-            color: #ffffff;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            user-select: none;
-        }
-
-        .active-project-label:hover {
-            opacity: 0.85;
-        }
-
-        select#project-select {
-            display: none;
-            background: #222222;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 4px 8px;
-            border-radius: 6px;
+        button.btn-primary {
+            background-color: var(--accent-color);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
             font-size: 12px;
-            outline: none;
-            margin-top: 4px;
-            width: 100%;
+            font-weight: 500;
             cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button.btn-primary:hover {
+            background-color: var(--accent-hover);
         }
 
         .chat-area {
             flex-grow: 1;
             overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: rgba(30, 41, 59, 0.4);
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
             margin-bottom: 12px;
-            padding-right: 4px;
         }
 
         .message {
+            max-width: 90%;
+            padding: 8px 12px;
+            border-radius: 8px;
             font-size: 13px;
-            line-height: 1.6;
+            line-height: 1.5;
             word-wrap: break-word;
-            animation: fadeIn 0.15s ease-out forwards;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user {
-            color: #ffffff;
-            font-weight: 500;
-            align-self: flex-start;
-            border-left: 2px solid #3b82f6;
-            padding-left: 10px;
-            margin-left: 2px;
+            background-color: var(--accent-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
         }
 
         .message.assistant {
+            background-color: var(--card-bg);
             color: var(--text-primary);
             align-self: flex-start;
-            width: 100%;
+            border-bottom-left-radius: 2px;
+            border: 1px solid var(--border-color);
         }
 
         .message.error {
-            background: rgba(239, 68, 68, 0.08);
+            background-color: rgba(239, 68, 68, 0.1);
             color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 8px 12px;
-            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
             align-self: center;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        /* Clean Code block wrapper */
-        .code-wrapper {
-            margin: 12px 0;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            background: var(--code-body-bg);
-        }
-
-        .code-header {
-            background: var(--code-header-bg);
-            padding: 6px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 500;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        .copy-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-muted);
-            padding: 2px 6px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 10px;
-            transition: all 0.15s;
-        }
-
-        .copy-btn:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .message pre {
-            margin: 0;
-            padding: 12px;
-            overflow-x: auto;
+            max-width: 100%;
         }
 
         .message code {
-            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, monospace;
-            font-size: 12px;
-            color: #60a5fa;
-            background: rgba(255, 255, 255, 0.03);
+            background-color: rgba(0, 0, 0, 0.3);
             padding: 2px 4px;
+            border-radius: 3px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+        }
+
+        .message pre {
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 8px;
             border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+            border: 1px solid #334155;
         }
 
         .message pre code {
-            color: #e2e8f0;
             background: none;
             padding: 0;
-            border-radius: 0;
-            white-space: pre;
         }
 
         .citations-container {
-            margin-top: 14px;
-            border-top: 1px solid rgba(255, 255, 255, 0.04);
-            padding-top: 10px;
+            margin-top: 8px;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 6px;
         }
 
         .citations-title {
-            font-size: 10px;
-            color: var(--text-muted);
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            margin-bottom: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 4px;
         }
 
         .citation-badge {
             display: inline-flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 3px 8px;
-            border-radius: 6px;
+            background-color: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+            padding: 2px 6px;
+            border-radius: 4px;
             font-size: 11px;
             cursor: pointer;
-            margin-right: 6px;
-            margin-bottom: 6px;
-            transition: all 0.15s ease;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
         }
 
         .citation-badge:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background-color: var(--accent-color);
             color: white;
-            border-color: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent-color);
         }
 
         .metadata-footer {
-            font-size: 9px;
+            font-size: 10px;
             color: var(--text-muted);
-            margin-top: 10px;
+            margin-top: 6px;
             display: flex;
             justify-content: space-between;
-            border-top: 1px solid rgba(255, 255, 255, 0.02);
-            padding-top: 6px;
         }
 
-        /* Unified Input Container */
-        .input-container {
-            background-color: var(--input-container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
+        .input-row {
             display: flex;
-            flex-direction: column;
-            margin-bottom: 8px;
-            transition: border-color 0.2s;
-        }
-
-        .input-container:focus-within {
-            border-color: rgba(255, 255, 255, 0.12);
+            gap: 6px;
         }
 
         textarea {
-            width: 100%;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: #ffffff;
-            padding: 12px 14px 4px 14px;
+            flex-grow: 1;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 6px;
             font-size: 13px;
+            outline: none;
             resize: none;
-            height: 48px;
+            height: 38px;
             font-family: inherit;
-            box-sizing: border-box;
         }
 
-        textarea::placeholder {
-            color: #6b7280;
+        textarea:focus {
+            border-color: var(--accent-color);
         }
 
-        .input-bottom-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 10px 10px 10px;
-        }
-
-        .input-bottom-left {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .input-bottom-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .input-action-btn {
-            background: none;
+        button.btn-send {
+            background-color: var(--accent-color);
             border: none;
-            color: var(--text-muted);
-            font-size: 14px;
+            color: white;
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
             cursor: pointer;
-            padding: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color 0.15s;
+            transition: background-color 0.2s;
         }
 
-        .input-action-btn:hover {
-            color: var(--text-primary);
-        }
-
-        .model-badge {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 11px;
-            color: var(--text-muted);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            user-select: none;
-        }
-
-        .model-badge:hover {
-            color: var(--text-primary);
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-
-        .disclaimer {
-            font-size: 10px;
-            color: #555555;
-            text-align: center;
-            margin-top: 4px;
-            margin-bottom: 4px;
-            user-select: none;
+        button.btn-send:hover {
+            background-color: var(--accent-hover);
         }
 
         .loading-dots {
@@ -559,13 +459,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             gap: 4px;
             align-items: center;
             height: 12px;
-            margin-right: 6px;
         }
 
         .dot {
-            width: 5px;
-            height: 5px;
-            background-color: var(--text-muted);
+            width: 6px;
+            height: 6px;
+            background-color: var(--text-secondary);
             border-radius: 50%;
             animation: bounce 1.4s infinite ease-in-out both;
         }
@@ -581,46 +480,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div class="header">
-        <div class="header-title">Agent</div>
-        <div class="header-actions">
-            <button class="header-btn" id="btn-refresh" title="Refresh Workspaces">🔄</button>
-            <button class="header-btn" id="btn-index-curr" title="Index Current Folder">⚡</button>
-        </div>
+        <h3>ECIP Lite Code Intelligence</h3>
+        <button class="btn-icon" id="btn-refresh" title="Refresh Workspaces">🔄</button>
     </div>
 
-    <div class="active-project-container">
-        <div class="active-project-label" id="project-label" onclick="toggleProjectDropdown()">
-            <span id="active-project-name">Loading...</span> <span style="font-size: 8px; opacity: 0.5;">▼</span>
+    <div class="project-selector">
+        <label for="project-select">ACTIVE WORKSPACE PROJECT</label>
+        <div class="select-row">
+            <select id="project-select">
+                <option value="">Loading workspaces...</option>
+            </select>
+            <button class="btn-primary" id="btn-index-curr" title="Register & Index active directory in VS Code">⚡ Index Folder</button>
         </div>
-        <select id="project-select" onchange="selectProject(this.value)">
-            <option value="">Loading workspaces...</option>
-        </select>
     </div>
 
     <div class="chat-area" id="chat-area">
         <div class="message assistant">
-            Hello! Select an indexed project workspace and ask me questions about your Java/Spring Boot code. Click the <b>⚡</b> header icon to register and index your current directory.
+            Hello! Select an indexed project workspace and ask me questions about your Java/Spring Boot code. Click <b>⚡ Index Folder</b> to scan your current directory.
         </div>
     </div>
 
-    <div class="input-container">
-        <textarea id="question-input" placeholder="Ask anything, @ to mention, / for actions"></textarea>
-        <div class="input-bottom-bar">
-            <div class="input-bottom-left">
-                <button class="input-action-btn" title="Add files">+</button>
-                <div class="model-badge">
-                    <span id="active-model-name">Gemini 3.5 Flash (Medium)</span> <span style="font-size: 8px; opacity: 0.5;">▼</span>
-                </div>
-            </div>
-            <div class="input-bottom-right">
-                <button class="input-action-btn" style="margin-right: 4px;" title="Voice input">🎙️</button>
-                <button class="input-action-btn" id="btn-send" title="Send question">➡️</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="disclaimer">
-        AI may make mistakes. Double-check all generated code.
+    <div class="input-row">
+        <textarea id="question-input" placeholder="Ask a question about the code..."></textarea>
+        <button class="btn-send" id="btn-send" title="Send question">➡️</button>
     </div>
 
     <script>
@@ -631,39 +513,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const sendBtn = document.getElementById('btn-send');
         const input = document.getElementById('question-input');
         const chatArea = document.getElementById('chat-area');
-
-        // Toggle dropdown display
-        window.toggleProjectDropdown = function() {
-            select.style.display = 'block';
-            select.focus();
-
-            const hide = () => {
-                select.style.display = 'none';
-            };
-            select.addEventListener('change', hide, { once: true });
-            select.addEventListener('blur', hide, { once: true });
-        };
-
-        window.selectProject = function(val) {
-            select.value = val;
-            const selectedText = select.options[select.selectedIndex]?.text || '';
-            document.getElementById('active-project-name').textContent = selectedText.replace(' (active)', '');
-        };
-
-        // Copy functionality for code blocks
-        window.copyCode = function(button) {
-            var pre = button.parentElement.nextElementSibling;
-            var code = pre.querySelector('code').innerText;
-            navigator.clipboard.writeText(code).then(function() {
-                var originalText = button.textContent;
-                button.textContent = 'Copied!';
-                button.style.color = '#34d399';
-                setTimeout(function() {
-                    button.textContent = originalText;
-                    button.style.color = '';
-                }, 2000);
-            });
-        };
 
         // Refresh action
         refreshBtn.addEventListener('click', () => {
@@ -744,27 +593,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 opt.value = '';
                 opt.textContent = '-- No projects indexed --';
                 select.appendChild(opt);
-                document.getElementById('active-project-name').textContent = 'No Workspace';
                 return;
             }
 
-            let activeName = '';
             workspaces.forEach(w => {
                 const opt = document.createElement('option');
                 opt.value = w.project_id;
-                opt.textContent = w.alias;
+                opt.textContent = w.alias + (w.is_active ? ' (active)' : '');
                 if (w.project_id === activeId || w.is_active) {
                     opt.selected = true;
-                    activeName = w.alias;
                 }
                 select.appendChild(opt);
             });
-
-            if (!activeName && workspaces.length > 0) {
-                select.options[0].selected = true;
-                activeName = workspaces[0].alias;
-            }
-            document.getElementById('active-project-name').textContent = activeName;
         }
 
         function renderMessage(text, sender) {
@@ -808,7 +648,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 response.citations.forEach((c, idx) => {
                     const btn = document.createElement('div');
                     btn.className = 'citation-badge';
-                    const fileBase = c.file_path.split('/').pop().split('\\').pop();
+                    const fileBase = c.file_path.split('/').pop().split('\\\\').pop();
                     btn.textContent = '[' + (idx + 1) + '] ' + fileBase + (c.start_line ? ':' + c.start_line : '');
                     btn.title = c.file_path + (c.start_line ? ' (Lines ' + c.start_line + '-' + c.end_line + ')' : '');
                     
@@ -841,17 +681,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             // Escape tags to prevent raw HTML injections
             let escaped = text
                 .replace(/&/g, "&amp;")
-                .replace(/&lt;/g, "&lt;")
-                .replace(/&gt;/g, "&gt;");
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
 
             // Format code blocks without using raw backticks
             const triple = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
-            const blockRegex = new RegExp(triple + "(\\w*)\\n([\\s\\S]*?)\\n" + triple, "g");
+            const blockRegex = new RegExp(triple + "(\\\\w*)\\\\n([\\\\s\\\\S]*?)\\\\n" + triple, "g");
             escaped = escaped.replace(blockRegex, function(match, lang, code) {
-                return '<div class="code-wrapper">' +
-                       '<div class="code-header"><span>' + (lang || 'Java') + '</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>' +
-                       '<pre><code>' + code + '</code></pre>' +
-                       '</div>';
+                return '<pre><code>' + code + '</code></pre>';
             });
 
             // Format inline code without using raw backticks
@@ -860,12 +697,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             escaped = escaped.replace(inlineRegex, '<code>$1</code>');
 
             // Format line breaks
-            escaped = escaped.replace(/\n/g, '<br>');
+            escaped = escaped.replace(/\\n/g, '<br>');
 
             return escaped;
         }
 
-        // Auto scroll to bottom
         function scrollToBottom() {
             chatArea.scrollTop = chatArea.scrollHeight;
         }
