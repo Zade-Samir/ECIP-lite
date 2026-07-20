@@ -195,9 +195,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <title>ECIP Lite Chat</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
+            --bg-color: #000000;
+            --card-bg: #121212;
+            --border-color: #262626;
             --accent-color: #3b82f6;
             --accent-hover: #2563eb;
             --text-primary: #f8fafc;
@@ -260,7 +260,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         select {
             flex-grow: 1;
-            background: #0f172a;
+            background: #121212;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             padding: 6px;
@@ -309,7 +309,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            background-color: rgba(30, 41, 59, 0.4);
+            background-color: rgba(18, 18, 18, 0.4);
             padding: 10px;
             display: flex;
             flex-direction: column;
