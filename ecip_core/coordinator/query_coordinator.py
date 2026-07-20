@@ -276,16 +276,50 @@ class QueryCoordinator:
                     metrics_collector.start_timer("context_building_duration")
                     context = self.context_builder.build(question)
                     metrics_collector.stop_timer("context_building_duration")
-                    if not context.strip() and retrieved_results:
-                        context_parts = ["Project Context:"]
-                        for r in retrieved_results:
-                            context_parts.append(
-                                f"File: {r.file_path}\n"
-                                f"Class: {r.class_name}\n"
-                                f"Method: {r.method_name}\n"
-                                f"Content:\n{r.content}\n"
-                            )
-                        context = "\n".join(context_parts)
+                    if not context.strip():
+                        if retrieved_results:
+                            context_parts = ["Project Context:"]
+                            for r in retrieved_results:
+                                context_parts.append(
+                                    f"File: {r.file_path}\n"
+                                    f"Class: {r.class_name}\n"
+                                    f"Method: {r.method_name}\n"
+                                    f"Content:\n{r.content}\n"
+                                )
+                            context = "\n".join(context_parts)
+                        else:
+                            # Build a general high-level structural overview of the project
+                            all_files = self.repository.get_all_files()
+                            if all_files:
+                                classes_by_package = {}
+                                for f in all_files:
+                                    pkg = f.get("package_name") or "default"
+                                    cls = f.get("class_name")
+                                    if cls:
+                                        classes_by_package.setdefault(pkg, []).append(cls)
+                                
+                                pkg_lines = []
+                                for pkg, classes in classes_by_package.items():
+                                    pkg_lines.append(f"  Package {pkg}:")
+                                    for cls in classes:
+                                        pkg_lines.append(f"    - Class {cls}")
+                                
+                                context_parts = [
+                                    "This is a general query about the workspace codebase.",
+                                    "Here is the high-level structural overview of the project (packages and classes):",
+                                    "\n".join(pkg_lines)
+                                ]
+                                
+                                for f in all_files[:5]:
+                                    cls_name = f.get("class_name")
+                                    if cls_name:
+                                        methods = self.repository.find_methods(cls_name)
+                                        context_parts.append(
+                                            f"\nClass Overview: {cls_name}\n"
+                                            f"Package: {f.get('package_name')}\n"
+                                            f"Methods: {', '.join(methods)}"
+                                        )
+                                context = "\n".join(context_parts)
                 except Exception as e:
                     metrics_collector.stop_timer("context_building_duration")
                     logger.error(f"Service failure in ContextBuilder: {e}")
