@@ -260,6 +260,34 @@ GET /api/v1/diagnostics
 
 ---
 
+## 🔌 VS Code Extension
+
+ECIP Lite comes with a built-in VS Code extension providing a polished chat interface right inside your IDE sidebar.
+
+### ✨ Key Extension Features
+- **Real-Time Token Streaming**: Watch the model output answer tokens instantly one-by-one as they generate.
+- **Index Status Indicator**: Visual colored status badge shows whether your selected workspace is indexed (along with indexed files count) or not.
+- **Rich Markdown Formatting**: Supports clean code headers, bold/italics, and nested bullet points matching standard code editors.
+- **Source Badges**: Clickable citations allow you to jump directly to the exact file and line number cited by the model.
+- **Sleek Gray-on-Black Theme**: Customized dark theme blending seamlessly into VS Code's environment.
+
+### Development Setup
+1. Open the `/vscode-extension` directory:
+   ```bash
+   cd vscode-extension
+   ```
+2. Install npm dependencies:
+   ```bash
+   npm install
+   ```
+3. Compile the typescript code:
+   ```bash
+   npm run compile
+   ```
+4. Press `F5` inside VS Code to launch the **Extension Development Host** test window. Make sure your local FastAPI backend server (`python run_api.py`) is running!
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -293,6 +321,10 @@ ecip-lite/
 │   ├── e2e/              ← End-to-end pipeline tests
 │   ├── integration/      ← Integration tests
 │   └── test_*.py         ← Unit tests per module
+│
+├── vscode-extension/     ← VS Code Extension source code (TypeScript/Webview)
+│   ├── src/              ← Extension controllers and providers
+│   └── package.json      ← VS Code extension manifest
 │
 ├── scripts/
 │   └── run_release_validation.py  ← Pre-release gate (all 255 tests)
