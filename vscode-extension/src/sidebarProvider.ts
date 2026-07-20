@@ -196,13 +196,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <style>
         :root {
             --bg-color: #000000;
-            --card-bg: #121212;
-            --border-color: #262626;
+            --card-bg: #333333;
+            --border-color: #555555;
             --accent-color: #3b82f6;
             --accent-hover: #2563eb;
             --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
         }
 
         body {
@@ -260,7 +260,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         select {
             flex-grow: 1;
-            background: #121212;
+            background: #333333;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             padding: 6px;
@@ -309,7 +309,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            background-color: rgba(18, 18, 18, 0.4);
+            background-color: rgba(51, 51, 51, 0.4);
             padding: 10px;
             display: flex;
             flex-direction: column;
