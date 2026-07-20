@@ -35,6 +35,9 @@ async def index_project(request: IndexRequest):
 
     logger.info("Project validated")
 
+    from ecip_core.workspace.manager import workspace_manager
+    workspace_manager.set_active_workspace(request.project_alias)
+
     # 2. Extract stats before indexing (skips/indexes calculation)
     try:
         scanner = ProjectScanner()
