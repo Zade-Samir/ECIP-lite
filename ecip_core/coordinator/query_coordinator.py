@@ -65,9 +65,22 @@ class QueryCoordinator:
 
             # Initialize search & retrieval
             self.repository = JavaRepository()
+
+            from ecip_core.workspace.manager import workspace_manager
+            from pathlib import Path
+            active_project = workspace_manager.get_active_workspace()
+            workspace = workspace_manager.get_workspace(active_project)
+            if workspace:
+                root_path = workspace["root_path"]
+                index_path = str(Path(root_path) / ".ecip" / "faiss.index")
+                metadata_path = str(Path(root_path) / ".ecip" / "faiss_metadata.json")
+            else:
+                index_path = settings.FAISS_INDEX_PATH
+                metadata_path = settings.FAISS_METADATA_PATH
+
             self.faiss_store = FAISSStore(
-                index_path=settings.FAISS_INDEX_PATH,
-                metadata_path=settings.FAISS_METADATA_PATH
+                index_path=index_path,
+                metadata_path=metadata_path
             )
             self.metadata_service = MetadataSearchService(
                 repository=self.repository,
@@ -110,6 +123,26 @@ class QueryCoordinator:
         from ecip_core.metrics import metrics_collector
         metrics_collector.start_timer("total_request_duration")
         try:
+            # Resolve project and dynamically reload FAISS store
+            project_id = getattr(request, "project_id", "default") or "default"
+            from ecip_core.workspace.manager import workspace_manager
+            from ecip_core.vectorstore.faiss_store import FAISSStore
+            from pathlib import Path
+
+            workspace_manager.set_active_workspace(project_id)
+            workspace = workspace_manager.get_workspace(project_id)
+            if workspace:
+                root_path = workspace["root_path"]
+                index_path = str(Path(root_path) / ".ecip" / "faiss.index")
+                metadata_path = str(Path(root_path) / ".ecip" / "faiss_metadata.json")
+            else:
+                index_path = settings.FAISS_INDEX_PATH
+                metadata_path = settings.FAISS_METADATA_PATH
+
+            self.faiss_store = FAISSStore(index_path=index_path, metadata_path=metadata_path)
+            self.semantic_search.faiss_store = self.faiss_store
+            self.metadata_service.faiss_store = self.faiss_store
+
             # 1. Normalize request
             question = request.question.strip() if request.question else ""
             logger.info("Query received")
