@@ -195,86 +195,117 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <title>ECIP Lite Chat</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
+            --bg-gradient: linear-gradient(135deg, #090d16 0%, #111827 100%);
+            --card-bg: rgba(30, 41, 59, 0.55);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(59, 130, 246, 0.4);
             --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
+            --accent-gradient: linear-gradient(90deg, #60a5fa, #3b82f6);
             --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
+            --text-secondary: #cbd5e1;
             --text-muted: #64748b;
+            --glow-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+            --code-header-bg: #1e293b;
+            --code-body-bg: #090d16;
         }
 
         body {
-            background-color: var(--bg-color);
+            background: var(--bg-gradient);
             color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 12px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
             height: 100vh;
             box-sizing: border-box;
         }
 
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 10px;
         }
 
         .header h3 {
             margin: 0;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             letter-spacing: 0.5px;
-            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            background: linear-gradient(90deg, #38bdf8, #3b82f6, #818cf8);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
         }
 
         .project-selector {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 6px;
-            margin-bottom: 12px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 14px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
+            box-shadow: var(--glow-shadow);
         }
 
         .project-selector label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 500;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.8px;
         }
 
         .select-row {
             display: flex;
-            gap: 6px;
+            gap: 8px;
         }
 
         select {
             flex-grow: 1;
-            background: #0f172a;
-            border: 1px solid var(--border-color);
+            background: #090d16;
+            border: 1px solid var(--card-border);
             color: var(--text-primary);
-            padding: 6px;
-            border-radius: 4px;
+            padding: 6px 10px;
+            border-radius: 6px;
             font-size: 12px;
             outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--accent-color);
         }
 
         button.btn-icon {
-            background: none;
-            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
             color: var(--text-secondary);
-            padding: 6px 8px;
-            border-radius: 4px;
+            padding: 6px 10px;
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -284,174 +315,238 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         button.btn-icon:hover {
             color: var(--text-primary);
-            border-color: var(--text-secondary);
-            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-color);
+            background: rgba(59, 130, 246, 0.1);
         }
 
         button.btn-primary {
-            background-color: var(--accent-color);
+            background: var(--accent-gradient);
             border: none;
             color: white;
             padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: opacity 0.2s, transform 0.1s;
         }
 
         button.btn-primary:hover {
-            background-color: var(--accent-hover);
+            opacity: 0.95;
+        }
+
+        button.btn-primary:active {
+            transform: scale(0.98);
         }
 
         .chat-area {
             flex-grow: 1;
             overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background-color: rgba(30, 41, 59, 0.4);
-            padding: 10px;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.3);
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 14px;
+            margin-bottom: 14px;
         }
 
         .message {
             max-width: 90%;
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 10px 14px;
+            border-radius: 12px;
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.6;
             word-wrap: break-word;
+            animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user {
-            background-color: var(--accent-color);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             align-self: flex-end;
-            border-bottom-right-radius: 2px;
+            border-bottom-right-radius: 3px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
         .message.assistant {
-            background-color: var(--card-bg);
+            background: var(--card-bg);
             color: var(--text-primary);
             align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 3px;
+            border: 1px solid var(--card-border);
         }
 
         .message.error {
-            background-color: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.08);
             color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            border: 1px solid rgba(239, 68, 68, 0.25);
             align-self: center;
             max-width: 100%;
         }
 
-        .message code {
-            background-color: rgba(0, 0, 0, 0.3);
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 12px;
+        /* Structured Code Block styling */
+        .code-wrapper {
+            margin: 10px 0;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+            background: var(--code-body-bg);
+        }
+
+        .code-header {
+            background: var(--code-header-bg);
+            padding: 4px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.1s;
+        }
+
+        .copy-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .message pre {
-            background-color: rgba(0, 0, 0, 0.4);
-            padding: 8px;
-            border-radius: 4px;
+            margin: 0;
+            padding: 10px;
             overflow-x: auto;
-            margin: 8px 0;
-            border: 1px solid #334155;
+        }
+
+        .message code {
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: #60a5fa;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 4px;
+            border-radius: 4px;
         }
 
         .message pre code {
+            color: #e2e8f0;
             background: none;
             padding: 0;
+            border-radius: 0;
+            white-space: pre;
         }
 
         .citations-container {
-            margin-top: 8px;
-            border-top: 1px dashed var(--border-color);
-            padding-top: 6px;
+            margin-top: 12px;
+            border-top: 1px dashed var(--card-border);
+            padding-top: 8px;
         }
 
         .citations-title {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            margin-bottom: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
         }
 
         .citation-badge {
             display: inline-flex;
             align-items: center;
-            background-color: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.2);
             color: #93c5fd;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
             font-size: 11px;
             cursor: pointer;
-            margin-right: 4px;
-            margin-bottom: 4px;
-            transition: all 0.2s;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            transition: all 0.15s ease;
         }
 
         .citation-badge:hover {
-            background-color: var(--accent-color);
+            background: var(--accent-color);
             color: white;
             border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
         }
 
         .metadata-footer {
-            font-size: 10px;
+            font-size: 9px;
             color: var(--text-muted);
-            margin-top: 6px;
+            margin-top: 8px;
             display: flex;
             justify-content: space-between;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+            padding-top: 6px;
         }
 
         .input-row {
             display: flex;
-            gap: 6px;
+            gap: 8px;
+            align-items: flex-end;
         }
 
         textarea {
             flex-grow: 1;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             color: var(--text-primary);
-            padding: 8px;
-            border-radius: 6px;
+            padding: 10px;
+            border-radius: 8px;
             font-size: 13px;
             outline: none;
             resize: none;
             height: 38px;
             font-family: inherit;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         textarea:focus {
             border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
 
         button.btn-send {
-            background-color: var(--accent-color);
+            background: var(--accent-gradient);
             border: none;
             color: white;
             width: 38px;
             height: 38px;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background-color 0.2s;
+            transition: transform 0.1s, opacity 0.2s;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
         }
 
         button.btn-send:hover {
-            background-color: var(--accent-hover);
+            opacity: 0.95;
+        }
+
+        button.btn-send:active {
+            transform: scale(0.95);
         }
 
         .loading-dots {
@@ -459,12 +554,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             gap: 4px;
             align-items: center;
             height: 12px;
+            margin-right: 6px;
         }
 
         .dot {
             width: 6px;
             height: 6px;
-            background-color: var(--text-secondary);
+            background-color: var(--accent-color);
             border-radius: 50%;
             animation: bounce 1.4s infinite ease-in-out both;
         }
@@ -480,7 +576,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div class="header">
-        <h3>ECIP Lite Code Intelligence</h3>
+        <h3>ECIP LITE CORE</h3>
         <button class="btn-icon" id="btn-refresh" title="Refresh Workspaces">🔄</button>
     </div>
 
@@ -513,6 +609,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const sendBtn = document.getElementById('btn-send');
         const input = document.getElementById('question-input');
         const chatArea = document.getElementById('chat-area');
+
+        // Copy functionality for code blocks
+        window.copyCode = function(button) {
+            var pre = button.parentElement.nextElementSibling;
+            var code = pre.querySelector('code').innerText;
+            navigator.clipboard.writeText(code).then(function() {
+                var originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.color = '#34d399';
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.style.color = '';
+                }, 2000);
+            });
+        };
 
         // Refresh action
         refreshBtn.addEventListener('click', () => {
@@ -688,7 +799,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const triple = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
             const blockRegex = new RegExp(triple + "(\\\\w*)\\\\n([\\\\s\\\\S]*?)\\\\n" + triple, "g");
             escaped = escaped.replace(blockRegex, function(match, lang, code) {
-                return '<pre><code>' + code + '</code></pre>';
+                return '<div class="code-wrapper">' +
+                       '<div class="code-header"><span>' + (lang || 'Java') + '</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>' +
+                       '<pre><code>' + code + '</code></pre>' +
+                       '</div>';
             });
 
             // Format inline code without using raw backticks
