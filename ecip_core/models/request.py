@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class InferenceRequest(BaseModel):
@@ -7,3 +8,4 @@ class InferenceRequest(BaseModel):
     """
 
     question: str
+    project_id: Optional[str] = "default"

@@ -45,7 +45,8 @@ async def query_pipeline(
             if request.project_id != "default":
                 logger.warning(f"Unknown workspace: {request.project_id}")
                 raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found. Register it first via POST /api/v1/workspaces")
-        logger.info("Project resolved")
+        workspace_manager.set_active_workspace(request.project_id)
+        logger.info("Project resolved and activated")
     except HTTPException:
         raise
     except Exception as e:
@@ -69,7 +70,7 @@ async def query_pipeline(
     # 3. Execute QA pipeline
     start_time = time.perf_counter()
     try:
-        inference_req = InferenceRequest(question=request.question)
+        inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
         coordinator_res = coordinator.process(inference_req)
     except ConnectionError as e:
         logger.error(f"Provider unavailable: {e}")

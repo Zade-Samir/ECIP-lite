@@ -1,0 +1,51 @@
+{
+  "name": "ecip-lite",
+  "displayName": "ECIP Lite",
+  "description": "Offline, privacy-first AI code intelligence for Java/Spring Boot",
+  "version": "1.0.0",
+  "publisher": "samirzade",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Programming Languages",
+    "Linters"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ecip-lite-sidebar-container",
+          "title": "ECIP Lite",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ecip-lite-sidebar-container": [
+        {
+          "type": "webview",
+          "id": "ecip-lite-chat-view",
+          "name": "ECIP Lite Chat",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "echo 'No linting required'",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.x",
+    "typescript": "^5.3.3"
+  }
+}
