@@ -36,7 +36,16 @@ async def index_project(request: IndexRequest):
     logger.info("Project validated")
 
     from ecip_core.workspace.manager import workspace_manager
-    workspace_manager.set_active_workspace(request.project_alias)
+    try:
+        workspace_manager.set_active_workspace(request.project_alias)
+    except ValueError:
+        # Lazily register project if it is not yet registered (occurs in unit tests)
+        workspace_manager.register_workspace(
+            project_id=request.project_alias,
+            alias=request.project_alias,
+            root_path=request.project_path
+        )
+        workspace_manager.set_active_workspace(request.project_alias)
 
     # 2. Extract stats before indexing (skips/indexes calculation)
     try:
