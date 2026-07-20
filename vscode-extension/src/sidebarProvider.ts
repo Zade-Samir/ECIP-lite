@@ -144,23 +144,63 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     project_id: projectId,
-                    question: question
+                    question: question,
+                    stream: true
                 })
             });
 
             if (!response.ok) {
-                const errorData: any = await response.json();
-                throw new Error(errorData.detail || `Server responded with ${response.status}`);
+                const errText = await response.text();
+                let detail = `Server responded with ${response.status}`;
+                try {
+                    const parsed = JSON.parse(errText);
+                    detail = parsed.detail || detail;
+                } catch {}
+                throw new Error(detail);
             }
 
-            const data: any = await response.json();
-            this._view?.webview.postMessage({
-                type: 'queryResponse',
-                answer: data.answer,
-                citations: data.citations || [],
-                modelName: data.model_name || 'local-llm',
-                durationMs: data.duration_ms || 0
-            });
+            if (!response.body) {
+                throw new Error("No response body received from API.");
+            }
+
+            const decoder = new TextDecoder("utf-8");
+            let buffer = "";
+            const reader = (response.body as any);
+
+            for await (const chunk of reader) {
+                buffer += decoder.decode(chunk, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+
+                for (const line of lines) {
+                    if (!line.trim()) {
+                        continue;
+                    }
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed.type === "token") {
+                            this._view?.webview.postMessage({
+                                type: 'queryToken',
+                                text: parsed.text
+                            });
+                        } else if (parsed.type === "done") {
+                            this._view?.webview.postMessage({
+                                type: 'queryResponse',
+                                citations: parsed.citations || [],
+                                modelName: parsed.model_name || 'local-llm',
+                                durationMs: parsed.duration_ms || 0
+                            });
+                        } else if (parsed.type === "error") {
+                            this._view?.webview.postMessage({
+                                type: 'queryResponse',
+                                error: parsed.message
+                            });
+                        }
+                    } catch (e) {
+                        // ignore malformed JSON
+                    }
+                }
+            }
         } catch (err: any) {
             this._view?.webview.postMessage({
                 type: 'queryResponse',
@@ -195,14 +235,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <title>ECIP Lite Chat</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
+            --bg-color: #000000;
+            --card-bg: #333333;
+            --border-color: #555555;
             --accent-color: #3b82f6;
             --accent-hover: #2563eb;
             --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
         }
 
         body {
@@ -260,7 +300,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         select {
             flex-grow: 1;
-            background: #0f172a;
+            background: #333333;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             padding: 6px;
@@ -309,7 +349,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            background-color: rgba(30, 41, 59, 0.4);
+            background-color: rgba(51, 51, 51, 0.4);
             padding: 10px;
             display: flex;
             flex-direction: column;
@@ -492,6 +532,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             </select>
             <button class="btn-primary" id="btn-index-curr" title="Register & Index active directory in VS Code">⚡ Index Folder</button>
         </div>
+        <div style="margin-top: 6px; display: flex; align-items: center;">
+            <span id="index-status-badge" style="display: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">Status: Unknown</span>
+        </div>
     </div>
 
     <div class="chat-area" id="chat-area">
@@ -514,6 +557,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const input = document.getElementById('question-input');
         const chatArea = document.getElementById('chat-area');
 
+        let currentWorkspaces = [];
+
+        // Update status badge on selection change
+        select.addEventListener('change', updateStatusBadge);
+
+        let accumulatedAnswer = "";
+
         // Refresh action
         refreshBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'getWorkspaces' });
@@ -523,6 +573,31 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         indexCurrBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'indexCurrentWorkspace' });
         });
+
+        function updateStatusBadge() {
+            const projectId = select.value;
+            const project = currentWorkspaces.find(w => w.project_id === projectId);
+            const badge = document.getElementById('index-status-badge');
+            if (!badge) return;
+
+            if (!project) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            badge.style.display = 'inline-block';
+            
+            const isIndexed = (project.indexed_files && project.indexed_files > 0) || project.status === 'active';
+            if (isIndexed) {
+                badge.textContent = 'Status: Indexed (' + (project.indexed_files || 0) + ' files)';
+                badge.style.backgroundColor = '#10b981'; // Green
+                badge.style.color = '#ffffff';
+            } else {
+                badge.textContent = 'Status: Not Indexed';
+                badge.style.backgroundColor = '#ef4444'; // Red
+                badge.style.color = '#ffffff';
+            }
+        }
 
         // Trigger query on Send
         function submitQuery() {
@@ -540,9 +615,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             renderMessage(question, 'user');
             input.value = '';
 
-            // Render assistant loading state
-            const loadingId = 'loading-' + Date.now();
-            renderLoadingMessage(loadingId);
+            // Render assistant placeholder for streaming
+            accumulatedAnswer = "";
+            const activeMsgId = 'assistant-active';
+            
+            const oldActive = document.getElementById(activeMsgId);
+            if (oldActive) oldActive.id = "";
+
+            renderAssistantPlaceholder(activeMsgId);
 
             // Post request to extension core
             vscode.postMessage({
@@ -565,6 +645,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const message = event.data;
             switch (message.type) {
                 case 'workspacesList': {
+                    currentWorkspaces = message.workspaces || [];
                     updateProjectSelect(message.workspaces, message.active);
                     break;
                 }
@@ -572,14 +653,37 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     renderMessage(message.message, 'error');
                     break;
                 }
-                case 'queryResponse': {
-                    // Remove loading placeholder
-                    removeLoadingPlaceholder();
+                case 'queryToken': {
+                    const activeBubble = document.getElementById('assistant-active');
+                    if (activeBubble) {
+                        const dots = activeBubble.querySelector('.loading-dots');
+                        if (dots) dots.remove();
 
-                    if (message.error) {
-                        renderMessage(message.error, 'error');
-                    } else {
-                        renderAssistantResponse(message);
+                        accumulatedAnswer += message.text;
+                        const contentSpan = activeBubble.querySelector('.content');
+                        if (contentSpan) {
+                            contentSpan.innerHTML = formatTextToHtml(accumulatedAnswer);
+                        }
+                        scrollToBottom();
+                    }
+                    break;
+                }
+                case 'queryResponse': {
+                    const activeBubble = document.getElementById('assistant-active');
+                    if (activeBubble) {
+                        const dots = activeBubble.querySelector('.loading-dots');
+                        if (dots) dots.remove();
+
+                        if (message.error) {
+                            const contentSpan = activeBubble.querySelector('.content');
+                            if (contentSpan) {
+                                contentSpan.innerHTML = '<span style="color: #f87171;">' + message.error + '</span>';
+                            }
+                            activeBubble.className = 'message error';
+                        } else {
+                            renderAssistantMetadata(activeBubble, message);
+                        }
+                        activeBubble.id = "";
                     }
                     break;
                 }
@@ -593,6 +697,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 opt.value = '';
                 opt.textContent = '-- No projects indexed --';
                 select.appendChild(opt);
+                updateStatusBadge();
                 return;
             }
 
@@ -605,6 +710,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 select.appendChild(opt);
             });
+            updateStatusBadge();
         }
 
         function renderMessage(text, sender) {
@@ -615,31 +721,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             scrollToBottom();
         }
 
-        function renderLoadingMessage(id) {
+        function renderAssistantPlaceholder(id) {
             const div = document.createElement('div');
             div.className = 'message assistant';
             div.id = id;
-            div.innerHTML = '<div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div> Analyzing codebase...';
+            div.innerHTML = '<div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><span class="content"></span>';
             chatArea.appendChild(div);
             scrollToBottom();
         }
 
-        function removeLoadingPlaceholder() {
-            const loaders = chatArea.querySelectorAll('[id^="loading-"]');
-            loaders.forEach(l => l.remove());
-        }
-
-        function renderAssistantResponse(response) {
-            const div = document.createElement('div');
-            div.className = 'message assistant';
-
-            // Simple markdown-style parser for formatting responses
-            let rawAnswer = response.answer;
-            let htmlContent = formatTextToHtml(rawAnswer);
-
-            div.innerHTML = htmlContent;
-
-            // Add citations if available
+        function renderAssistantMetadata(bubble, response) {
             if (response.citations && response.citations.length > 0) {
                 const citeContainer = document.createElement('div');
                 citeContainer.className = 'citations-container';
@@ -664,42 +755,109 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     citeContainer.appendChild(btn);
                 });
 
-                div.appendChild(citeContainer);
+                bubble.appendChild(citeContainer);
             }
 
-            // Performance metrics footer
             const footer = document.createElement('div');
             footer.className = 'metadata-footer';
             footer.innerHTML = '<span>Model: ' + response.modelName + '</span><span>Duration: ' + (response.durationMs / 1000).toFixed(2) + 's</span>';
-            div.appendChild(footer);
-
-            chatArea.appendChild(div);
+            bubble.appendChild(footer);
+            
             scrollToBottom();
         }
 
         function formatTextToHtml(text) {
-            // Escape tags to prevent raw HTML injections
             let escaped = text
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;");
 
-            // Format code blocks without using raw backticks
+            const codeBlocks = [];
             const triple = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
             const blockRegex = new RegExp(triple + "(\\\\w*)\\\\n([\\\\s\\\\S]*?)\\\\n" + triple, "g");
             escaped = escaped.replace(blockRegex, function(match, lang, code) {
-                return '<pre><code>' + code + '</code></pre>';
+                const placeholder = '___CODEBLOCK_' + codeBlocks.length + '___';
+                codeBlocks.push('<pre><code>' + code + '</code></pre>');
+                return placeholder;
             });
 
-            // Format inline code without using raw backticks
             const single = String.fromCharCode(96);
             const inlineRegex = new RegExp(single + "([^" + single + "]+)" + single, "g");
             escaped = escaped.replace(inlineRegex, '<code>$1</code>');
 
-            // Format line breaks
-            escaped = escaped.replace(/\\n/g, '<br>');
+            escaped = escaped.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+            escaped = escaped.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
 
-            return escaped;
+            const lines = escaped.split('\\n');
+            let html = [];
+            let listStack = [];
+
+            function closeLists(toLevel) {
+                while (listStack.length > toLevel) {
+                    listStack.pop();
+                    html.push('</ul>');
+                }
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                let trimmed = line.trim();
+
+                if (trimmed.startsWith('### ')) {
+                    closeLists(0);
+                    html.push('<h3>' + trimmed.substring(4) + '</h3>');
+                    continue;
+                } else if (trimmed.startsWith('## ')) {
+                    closeLists(0);
+                    html.push('<h2>' + trimmed.substring(3) + '</h2>');
+                    continue;
+                } else if (trimmed.startsWith('# ')) {
+                    closeLists(0);
+                    html.push('<h1>' + trimmed.substring(2) + '</h1>');
+                    continue;
+                }
+
+                let listMatch = line.match(/^(\\s*)[\\-\\*]\\s+(.*?)$/);
+                if (listMatch) {
+                    let indent = listMatch[1].length;
+                    let content = listMatch[2];
+
+                    let level = listStack.indexOf(indent);
+                    if (level === -1) {
+                        listStack.push(indent);
+                        html.push('<ul>');
+                        level = listStack.length - 1;
+                    } else {
+                        closeLists(level + 1);
+                    }
+
+                    html.push('<li>' + content + '</li>');
+                } else {
+                    if (trimmed === '') {
+                        closeLists(0);
+                        html.push('<br>');
+                    } else {
+                        closeLists(0);
+                        html.push('<div>' + line + '</div>');
+                    }
+                }
+            }
+            closeLists(0);
+
+            let finalHtml = html.join('');
+            
+            for (let idx = 0; idx < codeBlocks.length; idx++) {
+                const placeholder = '___CODEBLOCK_' + idx + '___';
+                finalHtml = finalHtml.replace('<div>' + placeholder + '</div>', codeBlocks[idx]);
+                finalHtml = finalHtml.replace(placeholder, codeBlocks[idx]);
+            }
+
+            finalHtml = finalHtml.replace(/<br><\\/h[1-3]>/g, '</h$1>');
+            finalHtml = finalHtml.replace(/<br><\\/ul>/g, '</ul>');
+            finalHtml = finalHtml.replace(/<br><\\/li>/g, '</li>');
+            finalHtml = finalHtml.replace(/<br><ul>/g, '<ul>');
+
+            return finalHtml;
         }
 
         function scrollToBottom() {

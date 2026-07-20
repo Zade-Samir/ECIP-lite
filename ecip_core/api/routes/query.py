@@ -69,42 +69,102 @@ async def query_pipeline(
 
     # 3. Execute QA pipeline
     start_time = time.perf_counter()
-    try:
-        inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
-        coordinator_res = coordinator.process(inference_req)
-    except ConnectionError as e:
-        logger.error(f"Provider unavailable: {e}")
-        raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
-    except TimeoutError as e:
-        logger.error(f"Pipeline failure: inference timeout: {e}")
-        raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected exception: {e}")
-        logger.error(f"Pipeline failure: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+    if request.stream:
+        import queue
+        import threading
+        import json
+        from fastapi.responses import StreamingResponse
 
-    duration_ms = int((time.perf_counter() - start_time) * 1000)
-    logger.info("Query completed")
+        token_queue = queue.Queue()
 
-    # Map citations
-    citations = []
-    if coordinator_res.citations:
-        for c in coordinator_res.citations:
-            citations.append(
-                CitationModel(
-                    file_path=c.file_path,
-                    class_name=c.class_name,
-                    method_name=c.method_name,
-                    start_line=c.start_line,
-                    end_line=c.end_line
+        def callback(token: str):
+            token_queue.put({"type": "token", "text": token})
+
+        def run_pipeline():
+            try:
+                inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
+                coordinator_res = coordinator.process(inference_req, callback=callback)
+                
+                # Map citations
+                citations = []
+                if coordinator_res.citations:
+                    for c in coordinator_res.citations:
+                        citations.append({
+                            "file_path": c.file_path,
+                            "class_name": c.class_name,
+                            "method_name": c.method_name or "",
+                            "start_line": c.start_line or 0,
+                            "end_line": c.end_line or 0
+                        })
+                
+                duration_ms = int((time.perf_counter() - start_time) * 1000)
+                token_queue.put({
+                    "type": "done",
+                    "citations": citations,
+                    "model_name": coordinator_res.model or "local-llm",
+                    "duration_ms": duration_ms
+                })
+            except ConnectionError as e:
+                logger.error(f"Provider unavailable: {e}")
+                token_queue.put({"type": "error", "message": "Inference Provider Unavailable"})
+            except TimeoutError as e:
+                logger.error(f"Pipeline failure: inference timeout: {e}")
+                token_queue.put({"type": "error", "message": "Inference Provider Unavailable"})
+            except Exception as e:
+                logger.error(f"Unexpected exception: {e}")
+                token_queue.put({"type": "error", "message": "Internal Server Error"})
+            finally:
+                token_queue.put(None)
+
+        # Start thread
+        thread = threading.Thread(target=run_pipeline)
+        thread.start()
+
+        def event_generator():
+            while True:
+                item = token_queue.get()
+                if item is None:
+                    break
+                yield json.dumps(item) + "\n"
+
+        return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+    else:
+        try:
+            inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
+            coordinator_res = coordinator.process(inference_req)
+        except ConnectionError as e:
+            logger.error(f"Provider unavailable: {e}")
+            raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
+        except TimeoutError as e:
+            logger.error(f"Pipeline failure: inference timeout: {e}")
+            raise HTTPException(status_code=503, detail="Inference Provider Unavailable")
+        except Exception as e:
+            logger.error(f"Unexpected exception: {e}")
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info("Query completed")
+
+        # Map citations
+        citations = []
+        if coordinator_res.citations:
+            for c in coordinator_res.citations:
+                citations.append(
+                    CitationModel(
+                        file_path=c.file_path,
+                        class_name=c.class_name,
+                        method_name=c.method_name or "",
+                        start_line=c.start_line or 0,
+                        end_line=c.end_line or 0
+                    )
                 )
-            )
 
-    response = QueryResponse(
-        answer=coordinator_res.answer,
-        citations=citations,
-        model_name=coordinator_res.model,
-        duration_ms=duration_ms
-    )
-    logger.info("Response returned")
-    return response
+        response = QueryResponse(
+            answer=coordinator_res.answer,
+            citations=citations,
+            model_name=coordinator_res.model or "local-llm",
+            duration_ms=duration_ms
+        )
+        logger.info("Response returned")
+        return response
