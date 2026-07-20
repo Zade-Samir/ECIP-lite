@@ -492,6 +492,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             </select>
             <button class="btn-primary" id="btn-index-curr" title="Register & Index active directory in VS Code">⚡ Index Folder</button>
         </div>
+        <div style="margin-top: 6px; display: flex; align-items: center;">
+            <span id="index-status-badge" style="display: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">Status: Unknown</span>
+        </div>
     </div>
 
     <div class="chat-area" id="chat-area">
@@ -514,6 +517,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const input = document.getElementById('question-input');
         const chatArea = document.getElementById('chat-area');
 
+        let currentWorkspaces = [];
+
+        // Update status badge on selection change
+        select.addEventListener('change', updateStatusBadge);
+
         // Refresh action
         refreshBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'getWorkspaces' });
@@ -523,6 +531,31 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         indexCurrBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'indexCurrentWorkspace' });
         });
+
+        function updateStatusBadge() {
+            const projectId = select.value;
+            const project = currentWorkspaces.find(w => w.project_id === projectId);
+            const badge = document.getElementById('index-status-badge');
+            if (!badge) return;
+
+            if (!project) {
+                badge.style.display = 'none';
+                return;
+            }
+
+            badge.style.display = 'inline-block';
+            
+            const isIndexed = (project.indexed_files && project.indexed_files > 0) || project.status === 'active';
+            if (isIndexed) {
+                badge.textContent = 'Status: Indexed (' + (project.indexed_files || 0) + ' files)';
+                badge.style.backgroundColor = '#10b981'; // Green
+                badge.style.color = '#ffffff';
+            } else {
+                badge.textContent = 'Status: Not Indexed';
+                badge.style.backgroundColor = '#ef4444'; // Red
+                badge.style.color = '#ffffff';
+            }
+        }
 
         // Trigger query on Send
         function submitQuery() {
@@ -565,6 +598,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const message = event.data;
             switch (message.type) {
                 case 'workspacesList': {
+                    currentWorkspaces = message.workspaces || [];
                     updateProjectSelect(message.workspaces, message.active);
                     break;
                 }
@@ -593,6 +627,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 opt.value = '';
                 opt.textContent = '-- No projects indexed --';
                 select.appendChild(opt);
+                updateStatusBadge();
                 return;
             }
 
@@ -605,6 +640,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 select.appendChild(opt);
             });
+            updateStatusBadge();
         }
 
         function renderMessage(text, sender) {
@@ -696,8 +732,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const inlineRegex = new RegExp(single + "([^" + single + "]+)" + single, "g");
             escaped = escaped.replace(inlineRegex, '<code>$1</code>');
 
+            // Format bold tags
+            escaped = escaped.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+
+            // Format italics tags
+            escaped = escaped.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
+
+            // Format Headers (H1, H2, H3)
+            escaped = escaped.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+            escaped = escaped.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+            escaped = escaped.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+
+            // Format bullet lists
+            escaped = escaped.replace(/^[\\-\\*]\\s+(.*?)$/gm, '<li>$1</li>');
+            escaped = escaped.replace(/(<li>.*?<\\/li>\\n?)+/g, '<ul>$&</ul>');
+
             // Format line breaks
             escaped = escaped.replace(/\\n/g, '<br>');
+
+            // Clean up double breaks around block elements
+            escaped = escaped.replace(/<br><\\/h[1-3]>/g, '</h$1>');
+            escaped = escaped.replace(/<br><\\/ul>/g, '</ul>');
+            escaped = escaped.replace(/<br><\\/li>/g, '</li>');
+            escaped = escaped.replace(/<br><ul>/g, '<ul>');
 
             return escaped;
         }

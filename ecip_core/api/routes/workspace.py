@@ -23,6 +23,8 @@ class WorkspaceResponse(BaseModel):
     alias: str
     root_path: str
     is_active: bool
+    status: Optional[str] = "registered"
+    indexed_files: Optional[int] = 0
 
 
 class WorkspaceListResponse(BaseModel):
@@ -60,7 +62,9 @@ async def create_workspace(request: WorkspaceCreateRequest):
             project_id=request.project_id,
             alias=request.alias,
             root_path=request.root_path,
-            is_active=(active == request.project_id)
+            is_active=(active == request.project_id),
+            status="registered",
+            indexed_files=0
         )
     except Exception as e:
         logger.error(f"Workspace creation failed: {e}")
@@ -78,7 +82,9 @@ async def list_workspaces():
                 project_id=w["project_id"],
                 alias=w.get("alias", w["project_id"]),
                 root_path=w.get("root_path", ""),
-                is_active=(w["project_id"] == active)
+                is_active=(w["project_id"] == active),
+                status=w.get("status", "registered"),
+                indexed_files=w.get("indexed_files", 0)
             )
             for w in workspaces
         ]
