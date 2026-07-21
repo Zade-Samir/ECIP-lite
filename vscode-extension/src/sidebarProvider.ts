@@ -733,6 +733,75 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
+
+        .reasoning-container {
+            background-color: #121212;
+            border: 1px solid #333333;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        .reasoning-summary {
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            background-color: #1a1a1a;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .reasoning-summary:hover {
+            background-color: #222222;
+            color: var(--text-primary);
+        }
+
+        .reasoning-header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reasoning-chevron {
+            font-size: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .reasoning-container[open] .reasoning-chevron {
+            transform: rotate(90deg);
+        }
+
+        .reasoning-content {
+            padding: 10px;
+            border-top: 1px solid #333333;
+            color: #94a3b8;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: var(--vscode-editor-font-family, Consolas, Monaco, monospace);
+            font-size: 11px;
+            line-height: 1.4;
+            background-color: #0d0d0d;
+        }
+
+        .reasoning-loader {
+            width: 8px;
+            height: 8px;
+            border: 1.5px solid #94a3b8;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -805,6 +874,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         });
 
         let accumulatedAnswer = "";
+        let accumulatedRaw = "";
 
         // Refresh action
         refreshBtn.addEventListener('click', () => {
@@ -859,6 +929,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             // Render assistant placeholder for streaming
             accumulatedAnswer = "";
+            accumulatedRaw = "";
             const activeMsgId = 'assistant-active';
             
             const oldActive = document.getElementById(activeMsgId);
@@ -904,10 +975,49 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         const dots = activeBubble.querySelector('.loading-dots');
                         if (dots) dots.remove();
 
-                        accumulatedAnswer += message.text;
+                        const rawToken = message.text;
+                        accumulatedRaw += rawToken;
+
+                        const thinkStartIdx = accumulatedRaw.indexOf('<think>');
+                        const thinkEndIdx = accumulatedRaw.indexOf('</think>');
+
+                        let displayAnswer = "";
+                        let displayReasoning = "";
+                        let isThinking = false;
+
+                        if (thinkStartIdx !== -1) {
+                            if (thinkEndIdx === -1) {
+                                displayReasoning = accumulatedRaw.substring(thinkStartIdx + 7);
+                                displayAnswer = accumulatedRaw.substring(0, thinkStartIdx);
+                                isThinking = true;
+                            } else {
+                                displayReasoning = accumulatedRaw.substring(thinkStartIdx + 7, thinkEndIdx);
+                                displayAnswer = accumulatedRaw.substring(0, thinkStartIdx) + accumulatedRaw.substring(thinkEndIdx + 8);
+                            }
+                        } else {
+                            displayAnswer = accumulatedRaw;
+                        }
+
+                        let reasoningHtml = "";
+                        if (displayReasoning || isThinking) {
+                            const loaderHtml = isThinking ? '<span class="reasoning-loader"></span>' : '';
+                            const titleText = isThinking ? 'Thinking...' : 'Thoughts & Reasoning';
+                            reasoningHtml = 
+                                '<details class="reasoning-container">' +
+                                    '<summary class="reasoning-summary">' +
+                                        '<div class="reasoning-header-left">' +
+                                            '<span>💡</span>' +
+                                            '<span>' + titleText + '</span> ' + loaderHtml +
+                                        '</div>' +
+                                        '<span class="reasoning-chevron">▶</span>' +
+                                    '</summary>' +
+                                    '<div class="reasoning-content">' + escapeHtml(displayReasoning) + '</div>' +
+                                '</details>';
+                        }
+
                         const contentSpan = activeBubble.querySelector('.content');
                         if (contentSpan) {
-                            contentSpan.innerHTML = formatTextToHtml(accumulatedAnswer);
+                            contentSpan.innerHTML = reasoningHtml + formatTextToHtml(displayAnswer);
                         }
                         scrollToBottom();
                     }
@@ -926,6 +1036,72 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                             }
                             activeBubble.className = 'message error';
                         } else {
+                            // Extract finalized thoughts
+                            const thinkStartIdx = accumulatedRaw.indexOf('<think>');
+                            const thinkEndIdx = accumulatedRaw.indexOf('</think>');
+                            let displayAnswer = "";
+                            let displayReasoning = "";
+
+                            if (thinkStartIdx !== -1) {
+                                if (thinkEndIdx === -1) {
+                                    displayReasoning = accumulatedRaw.substring(thinkStartIdx + 7);
+                                    displayAnswer = accumulatedRaw.substring(0, thinkStartIdx);
+                                } else {
+                                    displayReasoning = accumulatedRaw.substring(thinkStartIdx + 7, thinkEndIdx);
+                                    displayAnswer = accumulatedRaw.substring(0, thinkStartIdx) + accumulatedRaw.substring(thinkEndIdx + 8);
+                                }
+                            } else {
+                                displayAnswer = accumulatedRaw;
+                            }
+
+                            let reasoningHtml = "";
+                            if (displayReasoning) {
+                                reasoningHtml = 
+                                    '<details class="reasoning-container">' +
+                                        '<summary class="reasoning-summary">' +
+                                            '<div class="reasoning-header-left">' +
+                                                '<span>💡</span>' +
+                                                '<span>Thoughts & Reasoning</span>' +
+                                            '</div>' +
+                                            '<span class="reasoning-chevron">▶</span>' +
+                                        '</summary>' +
+                                        '<div class="reasoning-content">' + escapeHtml(displayReasoning) + '</div>' +
+                                    '</details>';
+                            }
+
+                            // Inject citations/remembered context snippets
+                            let contextHtml = "";
+                            if (message.citations && message.citations.length > 0) {
+                                let snippets = [];
+                                message.citations.forEach((c, idx) => {
+                                    if (c.content && c.content.trim()) {
+                                        const fileBase = c.file_path.split('/').pop().split('\\').pop();
+                                        snippets.push(
+                                            '--- Reference [' + (idx + 1) + ']: ' + fileBase + ' ---\n' +
+                                            c.content.trim()
+                                        );
+                                    }
+                                });
+                                if (snippets.length > 0) {
+                                    contextHtml = 
+                                        '<details class="reasoning-container" style="margin-top: 8px;">' +
+                                            '<summary class="reasoning-summary">' +
+                                                '<div class="reasoning-header-left">' +
+                                                    '<span>📖</span>' +
+                                                    '<span>Remembered Code Context</span>' +
+                                                '</div>' +
+                                                '<span class="reasoning-chevron">▶</span>' +
+                                            '</summary>' +
+                                            '<div class="reasoning-content" style="white-space: pre;">' + escapeHtml(snippets.join('\n\n')) + '</div>' +
+                                        '</details>';
+                                }
+                            }
+
+                            const contentSpan = activeBubble.querySelector('.content');
+                            if (contentSpan) {
+                                contentSpan.innerHTML = reasoningHtml + contextHtml + formatTextToHtml(displayAnswer);
+                            }
+
                             renderAssistantMetadata(activeBubble, message);
                         }
                         activeBubble.id = "";
@@ -1206,6 +1382,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     model: val
                 });
             });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
         }
 
         function scrollToBottom() {

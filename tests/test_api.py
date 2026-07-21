@@ -71,6 +71,7 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(res_json["model_name"], "qwen2.5-coder:3b")
         self.assertEqual(len(res_json["citations"]), 1)
         self.assertEqual(res_json["citations"][0]["file_path"], "/src/UserService.java")
+        self.assertEqual(res_json["citations"][0]["content"], "code content")
         self.assertIn("duration_ms", res_json)
 
     def test_invalid_payload_validation_error(self):

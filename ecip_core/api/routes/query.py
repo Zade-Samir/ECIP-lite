@@ -102,7 +102,8 @@ async def query_pipeline(
                             "class_name": c.class_name,
                             "method_name": c.method_name or "",
                             "start_line": c.start_line or 0,
-                            "end_line": c.end_line or 0
+                            "end_line": c.end_line or 0,
+                            "content": c.content or ""
                         })
                 
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
@@ -168,7 +169,8 @@ async def query_pipeline(
                         class_name=c.class_name,
                         method_name=c.method_name or "",
                         start_line=c.start_line or 0,
-                        end_line=c.end_line or 0
+                        end_line=c.end_line or 0,
+                        content=c.content or ""
                     )
                 )
 
