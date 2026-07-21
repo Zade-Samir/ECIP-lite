@@ -27,8 +27,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
         // Handle messages from the Webview UI
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
@@ -75,6 +73,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
             }
         });
+
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+        // Proactive fetches fallback
+        this.fetchWorkspaces();
+        this.fetchModelsList();
     }
 
     private getApiUrl(): string {
@@ -111,6 +115,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const response = await fetch(`${this.getApiUrl()}/api/v1/query/models`);
             if (response.ok) {
                 const data: any = await response.json();
+                vscode.window.showInformationMessage(`Models fetched: ${JSON.stringify(data.models)}`);
                 this._view?.webview.postMessage({
                     type: 'modelsList',
                     models: data.models || [],
@@ -120,8 +125,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     this._selectedModel = data.models[0];
                     this._context.globalState.update('selectedModel', this._selectedModel);
                 }
+            } else {
+                vscode.window.showErrorMessage(`Models response not OK: ${response.status}`);
             }
-        } catch (err) {
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Fetch models error: ${err.message || err}`);
             this._view?.webview.postMessage({
                 type: 'modelsList',
                 models: [],
@@ -853,6 +861,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     <script>
         const vscode = acquireVsCodeApi();
+
+        window.onerror = function(msg, url, line, col, error) {
+            vscode.postMessage({
+                type: 'showWarning',
+                message: 'Webview Error: ' + msg + ' (Line: ' + line + ')'
+            });
+            return false;
+        };
+
         const select = document.getElementById('project-select');
         const refreshBtn = document.getElementById('btn-refresh');
         const indexCurrBtn = document.getElementById('btn-index-curr');
