@@ -18,19 +18,30 @@ class PromptBuilder:
     def build_prompt(
         self,
         question: str = "",
-        context: Context | str = ""
+        context: Context | str = "",
+        history: Optional[list] = None
     ) -> Prompt | str:
         """
         Builds a grounded prompt. If context is a Context object, returns a typed Prompt.
         Otherwise, returns a legacy formatted string.
         """
+        from typing import Optional
+        history_str = ""
+        if history:
+            # Keep last 6 messages (3 turns) to manage context bloat
+            history_str = "\n".join(
+                f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content')}"
+                for m in history[-6:]
+            )
+
         # Legacy fallback mode
         if isinstance(context, str):
+            chat_history_section = f"\nConversation History:\n{history_str}\n" if history_str else ""
             return f"""You are a Senior Java Architect.
 
 Use the provided project context if available.
 If no project context is available, answer using your own knowledge.
-
+{chat_history_section}
 {context}
 
 Question:
@@ -50,7 +61,8 @@ Answer:
                 method_ctx="",
                 dep_ctx="",
                 citations_str="",
-                question=question
+                question=question,
+                history_str=history_str
             )
             return Prompt(
                 prompt_text=empty_text,
@@ -87,7 +99,8 @@ Answer:
             method_ctx=method_ctx,
             dep_ctx=dep_ctx,
             citations_str=citations_str,
-            question=question
+            question=question,
+            history_str=history_str
         )
 
         max_char_limit = self.max_tokens * 4
@@ -101,7 +114,8 @@ Answer:
                 method_ctx=method_ctx,
                 dep_ctx=dep_ctx,
                 citations_str=citations_str,
-                question=question
+                question=question,
+                history_str=history_str
             )
 
             if len(prompt_text) > max_char_limit:
@@ -112,7 +126,8 @@ Answer:
                     method_ctx=method_ctx,
                     dep_ctx=dep_ctx,
                     citations_str=citations_str,
-                    question=question
+                    question=question,
+                    history_str=history_str
                 )
 
                 if len(prompt_text) > max_char_limit:
@@ -128,7 +143,8 @@ Answer:
                         method_ctx=method_ctx,
                         dep_ctx=dep_ctx,
                         citations_str=citations_str,
-                        question=question
+                        question=question,
+                        history_str=history_str
                     )
 
         token_estimate = self._estimate_tokens(prompt_text)
@@ -148,13 +164,15 @@ Answer:
         method_ctx: str,
         dep_ctx: str,
         citations_str: str,
-        question: str
+        question: str,
+        history_str: str = ""
     ) -> str:
         system_prompt = settings.SYSTEM_PROMPT if settings else "You are a Senior Java Architect."
+        chat_history_section = f"\nConversation History:\n{history_str}\n" if history_str else ""
         return f"""System Instructions:
 {system_prompt} Answer the user's question grounded strictly in the provided project context.
 If the context is insufficient, state clearly that you do not have enough information. Do not invent classes, methods, or details.
-
+{chat_history_section}
 Project Information:
 Project Name: {project_name}
 

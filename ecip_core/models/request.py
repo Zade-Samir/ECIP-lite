@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class InferenceRequest(BaseModel):
@@ -9,3 +9,4 @@ class InferenceRequest(BaseModel):
 
     question: str
     project_id: Optional[str] = "default"
+    history: Optional[List[dict]] = None

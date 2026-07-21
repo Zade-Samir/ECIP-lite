@@ -2,12 +2,15 @@ import os
 import shutil
 import sqlite3
 import time
+import contextvars
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import logging
 
 logger = logging.getLogger("ecip.workspace")
+
+_active_project_id_var = contextvars.ContextVar("active_project_id", default="default")
 
 
 class WorkspaceManager:
@@ -18,7 +21,6 @@ class WorkspaceManager:
     """
 
     _instance = None
-    _active_project_id = "default"
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -28,14 +30,15 @@ class WorkspaceManager:
     @classmethod
     def get_active_workspace(cls) -> str:
         """Returns the currently active workspace project_id."""
-        return cls._active_project_id
+        return _active_project_id_var.get()
 
     @classmethod
     def get_active_db_path(cls) -> str:
         """Returns the file path of the database for the active workspace."""
-        if cls._active_project_id == "default":
+        active_id = _active_project_id_var.get()
+        if active_id == "default":
             return "data/ecip.db"
-        return f"data/ecip_{cls._active_project_id}.db"
+        return f"data/ecip_{active_id}.db"
 
     def _ensure_default_registered(self):
         """Lazily ensures that the default project is registered in the database registry."""
@@ -66,7 +69,7 @@ class WorkspaceManager:
             logger.warning(f"Unknown workspace: {project_id}")
             raise ValueError(f"Workspace '{project_id}' is not registered.")
         
-        WorkspaceManager._active_project_id = project_id
+        _active_project_id_var.set(project_id)
         logger.info(f"Workspace selected: {project_id}")
 
     def register_workspace(
@@ -114,8 +117,8 @@ class WorkspaceManager:
         # Initialize the project-specific DB schema
         try:
             # Temporarily activate to trigger schema initialization
-            old_active = WorkspaceManager._active_project_id
-            WorkspaceManager._active_project_id = project_id
+            old_active = _active_project_id_var.get()
+            _active_project_id_var.set(project_id)
             db = Database()
             db.initialize()
             
@@ -131,7 +134,7 @@ class WorkspaceManager:
             )
             db.get_connection().commit()
             
-            WorkspaceManager._active_project_id = old_active
+            _active_project_id_var.set(old_active)
         except Exception as e:
             logger.error(f"Workspace initialization failed for project DB {project_id}: {e}")
             raise
@@ -220,9 +223,12 @@ class WorkspaceManager:
                 db_file = Path(f"data/ecip_{project_id}.db")
                 if db_file.exists():
                     # Close connection first if active
-                    if Database._active_db_path == str(db_file) and Database._connection:
-                        Database._connection.close()
-                        Database._connection = None
+                    from ecip_core.storage.sqlite.database import _db_active_path_var, _db_connection_var
+                    active_path = _db_active_path_var.get()
+                    conn = _db_connection_var.get()
+                    if active_path == str(db_file) and conn is not None:
+                        conn.close()
+                        _db_connection_var.set(None)
                     db_file.unlink()
             except Exception as e:
                 logger.error(f"Cleanup failure deleting SQLite file: {e}")
@@ -259,8 +265,8 @@ class WorkspaceManager:
             logger.error(f"Cleanup failure during cache invalidation: {e}")
 
         # If deleted active workspace, fall back to default
-        if WorkspaceManager._active_project_id == project_id:
-            WorkspaceManager._active_project_id = "default"
+        if _active_project_id_var.get() == project_id:
+            _active_project_id_var.set("default")
 
         logger.info(f"Workspace removed: {project_id}")
 
@@ -271,8 +277,8 @@ class WorkspaceManager:
             raise ValueError(f"Workspace '{project_id}' is not registered.")
 
         # Temporarily activate DB connection to extract stats
-        old_active = WorkspaceManager._active_project_id
-        WorkspaceManager._active_project_id = project_id
+        old_active = _active_project_id_var.get()
+        _active_project_id_var.set(project_id)
         from ecip_core.storage.sqlite.database import Database
         db = Database()
         
@@ -293,7 +299,7 @@ class WorkspaceManager:
         except Exception:
             pass
         finally:
-            WorkspaceManager._active_project_id = old_active
+            _active_project_id_var.set(old_active)
 
         return {
             "project_id": project_id,
