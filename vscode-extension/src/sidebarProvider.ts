@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'ecip-lite-chat-view';
@@ -6,6 +8,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private _chatHistory: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
 
     private _selectedModel: string | undefined;
+
+    private logDebug(msg: string) {
+        try {
+            const logPath = path.join(__dirname, '..', 'extension_debug.log');
+            fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
+        } catch (e) {}
+    }
 
     constructor(private readonly _context: vscode.ExtensionContext) {
         this._selectedModel = this._context.globalState.get<string>('selectedModel');
@@ -29,6 +38,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Handle messages from the Webview UI
         webviewView.webview.onDidReceiveMessage(async (data) => {
+            this.logDebug(`onDidReceiveMessage: ${data.type}`);
             switch (data.type) {
                 case 'getWorkspaces': {
                     await this.fetchWorkspaces();
@@ -63,6 +73,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     vscode.window.showInformationMessage(data.message);
                     break;
                 }
+                case 'logWebview': {
+                    this.logDebug(`[Webview] ${data.message}`);
+                    break;
+                }
                 case 'selectProject': {
                     const history = this._chatHistory.get(data.projectId) || [];
                     this._view?.webview.postMessage({
@@ -71,14 +85,33 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     });
                     break;
                 }
+                case 'ready': {
+                    await this.fetchWorkspaces();
+                    await this.fetchModelsList();
+                    break;
+                }
             }
         });
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        // Proactive fetches fallback
-        this.fetchWorkspaces();
-        this.fetchModelsList();
+        // Fallback: also fetch when sidebar becomes visible (handles cases where 'ready' message is missed)
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                this.logDebug('Sidebar became visible, fetching data...');
+                this.fetchWorkspaces();
+                this.fetchModelsList();
+            }
+        });
+
+        // Belt-and-suspenders: delayed proactive fetch in case 'ready' handshake is missed
+        setTimeout(() => {
+            if (this._view?.visible) {
+                this.logDebug('Delayed proactive fetch triggered');
+                this.fetchWorkspaces();
+                this.fetchModelsList();
+            }
+        }, 800);
     }
 
     private getApiUrl(): string {
@@ -92,17 +125,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private async fetchWorkspaces() {
         try {
+            this.logDebug(`fetchWorkspaces called. URL: ${this.getApiUrl()}/api/v1/workspaces`);
             const response = await fetch(`${this.getApiUrl()}/api/v1/workspaces`);
+            this.logDebug(`fetchWorkspaces status: ${response.status}`);
             if (!response.ok) {
                 throw new Error(`HTTP error ${response.status}`);
             }
             const data: any = await response.json();
+            this.logDebug(`fetchWorkspaces data: ${JSON.stringify(data)}`);
             this._view?.webview.postMessage({
                 type: 'workspacesList',
                 workspaces: data.workspaces || [],
                 active: data.active || null
             });
-        } catch (err) {
+        } catch (err: any) {
+            this.logDebug(`fetchWorkspaces error: ${err.message || err}`);
             this._view?.webview.postMessage({
                 type: 'backendError',
                 message: 'Failed to connect to ECIP Lite daemon. Make sure uvicorn is running on port 8000.'
@@ -112,9 +149,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private async fetchModelsList() {
         try {
+            this.logDebug(`fetchModelsList called. URL: ${this.getApiUrl()}/api/v1/query/models`);
             const response = await fetch(`${this.getApiUrl()}/api/v1/query/models`);
+            this.logDebug(`fetchModelsList status: ${response.status}`);
             if (response.ok) {
                 const data: any = await response.json();
+                this.logDebug(`fetchModelsList data: ${JSON.stringify(data)}`);
                 vscode.window.showInformationMessage(`Models fetched: ${JSON.stringify(data.models)}`);
                 this._view?.webview.postMessage({
                     type: 'modelsList',
@@ -126,9 +166,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     this._context.globalState.update('selectedModel', this._selectedModel);
                 }
             } else {
+                this.logDebug(`fetchModelsList non-OK status: ${response.status}`);
                 vscode.window.showErrorMessage(`Models response not OK: ${response.status}`);
             }
         } catch (err: any) {
+            this.logDebug(`fetchModelsList error: ${err.message || err}`);
             vscode.window.showErrorMessage(`Fetch models error: ${err.message || err}`);
             this._view?.webview.postMessage({
                 type: 'modelsList',
@@ -862,7 +904,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <script>
         const vscode = acquireVsCodeApi();
 
+        function logWebview(msg) {
+            vscode.postMessage({
+                type: 'logWebview',
+                message: msg
+            });
+        }
+
+        logWebview("Webview script initialized");
+
         window.onerror = function(msg, url, line, col, error) {
+            logWebview('Error: ' + msg + ' (Line: ' + line + ')');
             vscode.postMessage({
                 type: 'showWarning',
                 message: 'Webview Error: ' + msg + ' (Line: ' + line + ')'
@@ -870,6 +922,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             return false;
         };
 
+        logWebview("Retrieving elements...");
         const select = document.getElementById('project-select');
         const refreshBtn = document.getElementById('btn-refresh');
         const indexCurrBtn = document.getElementById('btn-index-curr');
@@ -878,6 +931,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const chatArea = document.getElementById('chat-area');
         const modelSelect = document.getElementById('model-select');
         const selectedModelLabel = document.getElementById('selected-model-label');
+        logWebview("Elements retrieved. select=" + !!select + ", refreshBtn=" + !!refreshBtn + ", modelSelect=" + !!modelSelect);
 
         let currentWorkspaces = [];
 
@@ -899,9 +953,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'getModels' });
         });
 
-        // Pull initial configurations
-        vscode.postMessage({ type: 'getWorkspaces' });
-        vscode.postMessage({ type: 'getModels' });
+        // Pull initial configurations - sent AFTER message listener is registered below
 
         // Index current folder
         indexCurrBtn.addEventListener('click', () => {
@@ -977,6 +1029,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         window.addEventListener('message', event => {
             const message = event.data;
+            if (!message || !message.type) return;
+
+            logWebview("Received message type: " + message.type);
             switch (message.type) {
                 case 'modelsList': {
                     updateModelDropdown(message.models, message.selected);
@@ -1159,6 +1214,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
             }
         });
+
+        // NOW post the 'ready' message - listener is registered above, so messages can be received
+        logWebview("Posting ready event");
+        vscode.postMessage({ type: 'ready' });
 
         function updateProjectSelect(workspaces, activeId) {
             select.innerHTML = '';
@@ -1370,7 +1429,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         function updateModelDropdown(models, selected) {
-            if (!modelSelect || !selectedModelLabel) return;
+            logWebview("updateModelDropdown called. models=" + JSON.stringify(models) + ", selected=" + selected);
+            if (!modelSelect || !selectedModelLabel) {
+                logWebview("updateModelDropdown early return because elements missing");
+                return;
+            }
             modelSelect.innerHTML = '';
             
             if (models.length === 0) {
