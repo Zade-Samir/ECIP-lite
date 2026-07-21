@@ -36,6 +36,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     await this.fetchWorkspaces();
                     break;
                 }
+                case 'getModels': {
+                    await this.fetchModelsList();
+                    break;
+                }
                 case 'indexCurrentWorkspace': {
                     await this.indexCurrentWorkspace();
                     break;
@@ -71,10 +75,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
             }
         });
-
-        // Fetch workspaces on load
-        this.fetchWorkspaces();
-        this.fetchModelsList();
     }
 
     private getApiUrl(): string {
@@ -879,7 +879,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         // Refresh action
         refreshBtn.addEventListener('click', () => {
             vscode.postMessage({ type: 'getWorkspaces' });
+            vscode.postMessage({ type: 'getModels' });
         });
+
+        // Pull initial configurations
+        vscode.postMessage({ type: 'getWorkspaces' });
+        vscode.postMessage({ type: 'getModels' });
 
         // Index current folder
         indexCurrBtn.addEventListener('click', () => {
