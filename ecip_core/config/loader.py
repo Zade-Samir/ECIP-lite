@@ -18,6 +18,7 @@ from ecip_core.config.domains import (
     ProjectStorageSettings,
     CacheSettings,
     ExperimentalSettings,
+    GraphSettings,
 )
 from ecip_core.config.profiles import PROFILE_DEFAULTS
 
@@ -77,6 +78,12 @@ class Settings(BaseSettings):
 
     # Experimental Domain
     EXPERIMENTAL_ENABLE_NEW_PARSER: bool = Field(default=False)
+
+    # Graph Domain
+    GRAPH_PROVIDER: str = Field(default="sqlite")
+    NEO4J_URI: str = Field(default="bolt://localhost:7687")
+    NEO4J_USERNAME: str = Field(default="neo4j")
+    NEO4J_PASSWORD: str = Field(default="password")
 
     # Validators
     @field_validator("ECIP_PROFILE")
@@ -189,6 +196,15 @@ class Settings(BaseSettings):
     def experimental(self) -> ExperimentalSettings:
         return ExperimentalSettings(enable_new_parser=self.EXPERIMENTAL_ENABLE_NEW_PARSER)
 
+    @property
+    def graph(self) -> GraphSettings:
+        return GraphSettings(
+            provider=self.GRAPH_PROVIDER,
+            neo4j_uri=self.NEO4J_URI,
+            neo4j_username=self.NEO4J_USERNAME,
+            neo4j_password=self.NEO4J_PASSWORD
+        )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"
@@ -242,6 +258,10 @@ def load_settings() -> Settings:
         "API_PORT": "api__port",
         "CLI_ANSI_COLORS": "cli__ansi_colors",
         "CACHE_ENABLED": "cache__enabled",
+        "GRAPH_PROVIDER": "graph__provider",
+        "NEO4J_URI": "graph__neo4j_uri",
+        "NEO4J_USERNAME": "graph__neo4j_username",
+        "NEO4J_PASSWORD": "graph__neo4j_password",
     }
 
     keys_to_clear = []

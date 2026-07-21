@@ -41,3 +41,6 @@ six==1.17.0                # Python 2/3 compatibility (javalang)
 typing_extensions==4.15.0  # Typing backports
 typing-inspection==0.4.2   # Runtime type inspection
 annotated-doc==0.0.4       # Documentation utilities
+
+# ── Enterprise Graph Database ─────────────────────────────────
+neo4j==5.22.0              # Neo4j Graph Database Python SDK

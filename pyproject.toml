@@ -36,6 +36,7 @@ dependencies = [
     "pydantic-settings==2.14.2",
     "python-dotenv==1.2.2",
     "click==8.4.2",
+    "neo4j==5.22.0",
 ]
 
 [project.urls]
