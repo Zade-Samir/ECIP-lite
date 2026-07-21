@@ -379,38 +379,70 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         .chat-area {
             flex-grow: 1;
             overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background-color: rgba(51, 51, 51, 0.4);
-            padding: 10px;
+            background-color: transparent;
+            padding: 10px 4px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
             margin-bottom: 12px;
         }
 
         .message {
             max-width: 90%;
             padding: 8px 12px;
-            border-radius: 8px;
             font-size: 13px;
             line-height: 1.5;
             word-wrap: break-word;
         }
 
         .message.user {
-            background-color: var(--accent-color);
-            color: white;
+            background-color: #222222;
+            color: #ffffff;
             align-self: flex-end;
-            border-bottom-right-radius: 2px;
+            border-radius: 18px;
+            border: 1px solid #444444;
+            padding: 10px 16px;
+            margin-left: 20%;
         }
 
         .message.assistant {
-            background-color: var(--card-bg);
-            color: var(--text-primary);
+            background-color: transparent !important;
+            color: #e2e8f0;
             align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            border: 1px solid var(--border-color);
+            border: none !important;
+            padding: 0;
+            max-width: 100%;
+        }
+
+        .message.assistant h1,
+        .message.assistant h2,
+        .message.assistant h3 {
+            color: #ffffff;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .message.assistant h1 { font-size: 18px; }
+        .message.assistant h2 { font-size: 16px; }
+        .message.assistant h3 { font-size: 14px; }
+
+        .message.assistant ul {
+            margin: 8px 0 12px 18px;
+            padding: 0;
+            list-style-type: disc;
+        }
+
+        .message.assistant li {
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+
+        .text-line {
+            margin-bottom: 8px;
+            line-height: 1.5;
+            color: #e2e8f0;
         }
 
         .message.error {
@@ -419,28 +451,92 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             border: 1px solid rgba(239, 68, 68, 0.3);
             align-self: center;
             max-width: 100%;
+            border-radius: 8px;
+            padding: 8px 12px;
         }
 
         .message code {
-            background-color: rgba(0, 0, 0, 0.3);
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 12px;
-        }
-
-        .message pre {
-            background-color: rgba(0, 0, 0, 0.4);
-            padding: 8px;
+            background-color: #222222;
+            color: #e2e8f0;
+            padding: 2px 5px;
             border-radius: 4px;
-            overflow-x: auto;
-            margin: 8px 0;
-            border: 1px solid #334155;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 12px;
+            border: 1px solid #444444;
         }
 
-        .message pre code {
+        /* Code block container */
+        .code-block-container {
+            background-color: #111111;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-block-header {
+            background-color: #1c1c1c;
+            border-bottom: 1px solid #2d2d2d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .code-block-lang {
+            font-family: Menlo, Monaco, Consolas, monospace;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #cbd5e1;
+        }
+
+        .code-icon {
+            color: #64748b;
+        }
+
+        button.btn-copy {
             background: none;
-            padding: 0;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+
+        button.btn-copy:hover {
+            color: #ffffff;
+            background-color: #2d2d2d;
+            border-color: #475569;
+        }
+
+        .code-block-container pre {
+            background: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 10px 12px !important;
+            overflow-x: auto;
+        }
+
+        .code-block-container pre code {
+            background: none !important;
+            border: none !important;
+            padding: 0 !important;
+            color: #cbd5e1;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            display: block;
         }
 
         .citations-container {
@@ -488,42 +584,43 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         .input-row {
             display: flex;
             gap: 6px;
+            background-color: #1a1a1a;
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 8px;
+            align-items: center;
         }
 
         textarea {
             flex-grow: 1;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: transparent;
+            border: none;
             color: var(--text-primary);
-            padding: 8px;
-            border-radius: 6px;
+            padding: 4px 6px;
             font-size: 13px;
             outline: none;
             resize: none;
-            height: 38px;
+            height: 24px;
             font-family: inherit;
         }
 
-        textarea:focus {
-            border-color: var(--accent-color);
-        }
-
         button.btn-send {
-            background-color: var(--accent-color);
+            background-color: #3b82f6;
             border: none;
             color: white;
-            width: 38px;
-            height: 38px;
+            width: 28px;
+            height: 28px;
             border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background-color 0.2s;
+            flex-shrink: 0;
         }
 
         button.btn-send:hover {
-            background-color: var(--accent-hover);
+            background-color: #2563eb;
         }
 
         .loading-dots {
@@ -577,7 +674,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     <div class="input-row">
         <textarea id="question-input" placeholder="Ask a question about the code..."></textarea>
-        <button class="btn-send" id="btn-send" title="Send question">➡️</button>
+        <button class="btn-send" id="btn-send" title="Send question">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
     </div>
 
     <script>
@@ -839,6 +941,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             scrollToBottom();
         }
 
+        window.copyCodeBlock = function(btn) {
+            const pre = btn.closest('.code-block-container').querySelector('pre');
+            const codeText = pre.innerText || pre.textContent;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const originalInner = btn.innerHTML;
+                btn.innerHTML = 
+                    '<svg viewBox="0 0 24 24" width="12" height="12" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">' +
+                        '<polyline points="20 6 9 17 4 12"></polyline>' +
+                    '</svg>' +
+                    'Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = originalInner;
+                }, 2000);
+            });
+        };
+
         function formatTextToHtml(text) {
             let escaped = text
                 .replace(/&/g, "&amp;")
@@ -847,10 +965,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             const codeBlocks = [];
             const triple = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
-            const blockRegex = new RegExp(triple + "(\\\\w*)\\\\n([\\\\s\\\\S]*?)\\\\n" + triple, "g");
+            const blockRegex = new RegExp(triple + "([a-zA-Z0-9_+-]*)\\\\n([\\\\s\\\\S]*?)(?:\\\\n)?" + triple, "g");
             escaped = escaped.replace(blockRegex, function(match, lang, code) {
                 const placeholder = '___CODEBLOCK_' + codeBlocks.length + '___';
-                codeBlocks.push('<pre><code>' + code + '</code></pre>');
+                const language = lang.trim() || 'code';
+                const codeHtml = 
+                    '<div class="code-block-container">' +
+                        '<div class="code-block-header">' +
+                            '<span class="code-block-lang"><span class="code-icon">&lt;/&gt;</span> ' + language + '</span>' +
+                            '<button class="btn-copy" onclick="copyCodeBlock(this)">' +
+                                '<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">' +
+                                    '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>' +
+                                    '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>' +
+                                '</svg>' +
+                                'Copy' +
+                            '</button>' +
+                        '</div>' +
+                        '<pre><code>' + code + '</code></pre>' +
+                    '</div>';
+                codeBlocks.push(codeHtml);
                 return placeholder;
             });
 
@@ -911,7 +1044,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         html.push('<br>');
                     } else {
                         closeLists(0);
-                        html.push('<div>' + line + '</div>');
+                        html.push('<div class="text-line">' + line + '</div>');
                     }
                 }
             }
@@ -921,7 +1054,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             
             for (let idx = 0; idx < codeBlocks.length; idx++) {
                 const placeholder = '___CODEBLOCK_' + idx + '___';
-                finalHtml = finalHtml.replace('<div>' + placeholder + '</div>', codeBlocks[idx]);
+                finalHtml = finalHtml.replace('<div class="text-line">' + placeholder + '</div>', codeBlocks[idx]);
                 finalHtml = finalHtml.replace(placeholder, codeBlocks[idx]);
             }
 
