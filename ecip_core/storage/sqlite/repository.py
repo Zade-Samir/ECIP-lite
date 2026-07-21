@@ -521,18 +521,18 @@ class JavaRepository:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
             conn.commit()
+
+            # Delegate graph deletion to active provider
+            from ecip_core.graph.factory import get_graph_provider
+            get_graph_provider().delete_project(project_id)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def delete_class_edges(self, project_id: str, class_name: str):
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                "DELETE FROM dependency_edges WHERE project_id = ? AND source_class = ?",
-                (project_id, class_name)
-            )
-            self.connection.commit()
+            from ecip_core.graph.factory import get_graph_provider
+            get_graph_provider().delete_class_edges(project_id, class_name)
         except Exception as e:
             logger.error("Database failure")
             raise e
@@ -544,141 +544,49 @@ class JavaRepository:
         target_class: str,
         relationship_type: str
     ) -> bool:
-        import datetime
         try:
-            cursor = self.connection.cursor()
-            
-            # Check for duplicate
-            cursor.execute(
-                """
-                SELECT id FROM dependency_edges
-                WHERE project_id = ? AND source_class = ? AND target_class = ? AND relationship_type = ?
-                """,
-                (project_id, source_class, target_class, relationship_type)
-            )
-            if cursor.fetchone():
-                return False
-
-            discovered_at = datetime.datetime.utcnow().isoformat() + "Z"
-            cursor.execute(
-                """
-                INSERT INTO dependency_edges (
-                    project_id, source_class, target_class, relationship_type, discovered_at
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                (project_id, source_class, target_class, relationship_type, discovered_at)
-            )
-            self.connection.commit()
-            return True
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().save_edge(project_id, source_class, target_class, relationship_type)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_edges(self, project_id: str) -> list[dict]:
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                """
-                SELECT source_class, target_class, relationship_type, discovered_at
-                FROM dependency_edges WHERE project_id = ?
-                """,
-                (project_id,)
-            )
-            rows = cursor.fetchall()
-            return [
-                {
-                    "source_class": r[0],
-                    "target_class": r[1],
-                    "relationship_type": r[2],
-                    "discovered_at": r[3]
-                }
-                for r in rows
-            ]
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().get_edges(project_id)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_graph_stats(self, project_id: str) -> dict:
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM dependency_edges WHERE project_id = ?",
-                (project_id,)
-            )
-            total_edges = cursor.fetchone()[0]
-            return {"total_edges": total_edges}
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().get_graph_stats(project_id)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_outgoing_edges(self, project_id: str, class_name: str) -> list[dict]:
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                """
-                SELECT source_class, target_class, relationship_type, discovered_at
-                FROM dependency_edges WHERE project_id = ? AND source_class = ?
-                """,
-                (project_id, class_name)
-            )
-            rows = cursor.fetchall()
-            return [
-                {
-                    "source_class": r[0],
-                    "target_class": r[1],
-                    "relationship_type": r[2],
-                    "discovered_at": r[3]
-                }
-                for r in rows
-            ]
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().get_outgoing_edges(project_id, class_name)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_incoming_edges(self, project_id: str, class_name: str) -> list[dict]:
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                """
-                SELECT source_class, target_class, relationship_type, discovered_at
-                FROM dependency_edges WHERE project_id = ? AND target_class = ?
-                """,
-                (project_id, class_name)
-            )
-            rows = cursor.fetchall()
-            return [
-                {
-                    "source_class": r[0],
-                    "target_class": r[1],
-                    "relationship_type": r[2],
-                    "discovered_at": r[3]
-                }
-                for r in rows
-            ]
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().get_incoming_edges(project_id, class_name)
         except Exception as e:
             logger.error("Database failure")
             raise e
 
     def get_all_class_edges(self, project_id: str, class_name: str) -> list[dict]:
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(
-                """
-                SELECT source_class, target_class, relationship_type, discovered_at
-                FROM dependency_edges WHERE project_id = ? AND (source_class = ? OR target_class = ?)
-                """,
-                (project_id, class_name, class_name)
-            )
-            rows = cursor.fetchall()
-            return [
-                {
-                    "source_class": r[0],
-                    "target_class": r[1],
-                    "relationship_type": r[2],
-                    "discovered_at": r[3]
-                }
-                for r in rows
-            ]
+            from ecip_core.graph.factory import get_graph_provider
+            return get_graph_provider().get_all_class_edges(project_id, class_name)
         except Exception as e:
             logger.error("Database failure")
             raise e
