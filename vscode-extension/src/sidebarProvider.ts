@@ -5,7 +5,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _chatHistory: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
 
-    constructor(private readonly _extensionUri: vscode.Uri) {}
+    private _selectedModel: string | undefined;
+
+    constructor(private readonly _context: vscode.ExtensionContext) {
+        this._selectedModel = this._context.globalState.get<string>('selectedModel');
+    }
+
+    private get _extensionUri(): vscode.Uri {
+        return this._context.extensionUri;
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -36,6 +44,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     await this.handleQuery(data.projectId, data.question);
                     break;
                 }
+                case 'modelChanged': {
+                    this._selectedModel = data.model;
+                    this._context.globalState.update('selectedModel', data.model);
+                    break;
+                }
                 case 'openFile': {
                     await this.openFileAtLine(data.filePath, data.startLine, data.endLine);
                     break;
@@ -61,6 +74,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Fetch workspaces on load
         this.fetchWorkspaces();
+        this.fetchModelsList();
     }
 
     private getApiUrl(): string {
@@ -88,6 +102,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             this._view?.webview.postMessage({
                 type: 'backendError',
                 message: 'Failed to connect to ECIP Lite daemon. Make sure uvicorn is running on port 8000.'
+            });
+        }
+    }
+
+    private async fetchModelsList() {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/api/v1/query/models`);
+            if (response.ok) {
+                const data: any = await response.json();
+                this._view?.webview.postMessage({
+                    type: 'modelsList',
+                    models: data.models || [],
+                    selected: this._selectedModel || (data.models && data.models[0]) || ''
+                });
+                if (!this._selectedModel && data.models && data.models.length > 0) {
+                    this._selectedModel = data.models[0];
+                    this._context.globalState.update('selectedModel', this._selectedModel);
+                }
+            }
+        } catch (err) {
+            this._view?.webview.postMessage({
+                type: 'modelsList',
+                models: [],
+                selected: this._selectedModel || ''
             });
         }
     }
@@ -174,7 +212,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     project_id: projectId,
                     question: question,
                     stream: true,
-                    history: apiHistory
+                    history: apiHistory,
+                    model: this._selectedModel
                 })
             });
 
@@ -581,36 +620,85 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             justify-content: space-between;
         }
 
-        .input-row {
-            display: flex;
-            gap: 6px;
+        .input-container {
             background-color: #1a1a1a;
             border: 1px solid var(--border-color);
-            padding: 6px;
-            border-radius: 8px;
-            align-items: center;
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: auto;
+            box-sizing: border-box;
         }
 
         textarea {
-            flex-grow: 1;
+            width: 100%;
             background: transparent;
             border: none;
             color: var(--text-primary);
-            padding: 4px 6px;
             font-size: 13px;
             outline: none;
             resize: none;
-            height: 24px;
+            height: 48px;
             font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .left-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .model-select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #2b2b2b;
+            border-radius: 18px;
+            padding: 4px 10px;
+            border: 1px solid #444444;
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .model-select-wrapper span {
+            margin-right: 4px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .model-select-wrapper select {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .model-select-wrapper:hover {
+            background: #3a3a3a;
+            color: var(--text-primary);
         }
 
         button.btn-send {
             background-color: #3b82f6;
             border: none;
             color: white;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -672,14 +760,26 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
 
-    <div class="input-row">
+    <div class="input-container">
         <textarea id="question-input" placeholder="Ask a question about the code..."></textarea>
-        <button class="btn-send" id="btn-send" title="Send question">
-            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-        </button>
+        <div class="input-actions">
+            <div class="left-actions">
+                <div class="model-select-wrapper" title="Select Local LLM Model">
+                    <span>+</span>
+                    <span id="selected-model-label">Loading...</span>
+                    <span>▾</span>
+                    <select id="model-select">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-send" id="btn-send" title="Send question">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
     </div>
 
     <script>
@@ -690,6 +790,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const sendBtn = document.getElementById('btn-send');
         const input = document.getElementById('question-input');
         const chatArea = document.getElementById('chat-area');
+        const modelSelect = document.getElementById('model-select');
+        const selectedModelLabel = document.getElementById('selected-model-label');
 
         let currentWorkspaces = [];
 
@@ -780,10 +882,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        // Handle message signals from Extension
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.type) {
+                case 'modelsList': {
+                    updateModelDropdown(message.models, message.selected);
+                    break;
+                }
                 case 'workspacesList': {
                     currentWorkspaces = message.workspaces || [];
                     updateProjectSelect(message.workspaces, message.active);
@@ -1064,6 +1169,43 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             finalHtml = finalHtml.replace(/<br><ul>/g, '<ul>');
 
             return finalHtml;
+        }
+
+        function updateModelDropdown(models, selected) {
+            if (!modelSelect || !selectedModelLabel) return;
+            modelSelect.innerHTML = '';
+            
+            if (models.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = selected || 'qwen2.5-coder:3b';
+                opt.textContent = selected || 'qwen2.5-coder:3b';
+                modelSelect.appendChild(opt);
+                selectedModelLabel.textContent = selected || 'qwen2.5-coder:3b';
+                return;
+            }
+
+            models.forEach(model => {
+                const opt = document.createElement('option');
+                opt.value = model;
+                opt.textContent = model;
+                if (model === selected) {
+                    opt.selected = true;
+                }
+                modelSelect.appendChild(opt);
+            });
+
+            selectedModelLabel.textContent = selected || models[0];
+        }
+
+        if (modelSelect) {
+            modelSelect.addEventListener('change', () => {
+                const val = modelSelect.value;
+                selectedModelLabel.textContent = val;
+                vscode.postMessage({
+                    type: 'modelChanged',
+                    model: val
+                });
+            });
         }
 
         function scrollToBottom() {

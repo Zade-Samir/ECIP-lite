@@ -5,7 +5,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('ECIP Lite Extension is now active!');
 
     // Initialize the sidebar view provider
-    const sidebarProvider = new SidebarProvider(context.extensionUri);
+    const sidebarProvider = new SidebarProvider(context);
 
     // Register with VS Code
     context.subscriptions.push(

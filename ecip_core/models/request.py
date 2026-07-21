@@ -10,3 +10,4 @@ class InferenceRequest(BaseModel):
     question: str
     project_id: Optional[str] = "default"
     history: Optional[List[dict]] = None
+    model: Optional[str] = None

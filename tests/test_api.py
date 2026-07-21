@@ -207,6 +207,27 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn("Failed to scan directory", response.json()["detail"])
 
+    @patch("httpx.AsyncClient.get")
+    def test_list_models_endpoint(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "models": [
+                {"name": "qwen2.5-coder:3b"},
+                {"name": "nomic-embed-text"},
+                {"name": "qwen3.5:latest"}
+            ]
+        }
+        mock_get.return_value = mock_response
+
+        response = self.client.get("/api/v1/query/models")
+        self.assertEqual(response.status_code, 200)
+        res_json = response.json()
+        self.assertIn("models", res_json)
+        self.assertIn("qwen2.5-coder:3b", res_json["models"])
+        self.assertIn("qwen3.5:latest", res_json["models"])
+        self.assertNotIn("nomic-embed-text", res_json["models"])
+
 
 if __name__ == "__main__":
     unittest.main()

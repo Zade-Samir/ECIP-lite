@@ -88,7 +88,8 @@ async def query_pipeline(
                 inference_req = InferenceRequest(
                     question=request.question,
                     project_id=request.project_id,
-                    history=history_list
+                    history=history_list,
+                    model=request.model
                 )
                 coordinator_res = coordinator.process(inference_req, callback=callback)
                 
@@ -140,7 +141,8 @@ async def query_pipeline(
             inference_req = InferenceRequest(
                 question=request.question,
                 project_id=request.project_id,
-                history=history_list
+                history=history_list,
+                model=request.model
             )
             coordinator_res = coordinator.process(inference_req)
         except ConnectionError as e:
@@ -178,3 +180,32 @@ async def query_pipeline(
         )
         logger.info("Response returned")
         return response
+
+
+@router.get("/query/models")
+async def list_available_models():
+    """
+    Fetch available chat/completion models from the local Ollama instance.
+    """
+    import httpx
+    from ecip_core.config.loader import settings
+    url = f"{settings.OLLAMA_BASE_URL}/api/tags"
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("models", [])
+                model_names = []
+                for m in models:
+                    name = m.get("name", "")
+                    if name and not any(x in name.lower() for x in ["embed", "nomic"]):
+                        model_names.append(name)
+                # Fallback if no models are returned
+                if not model_names:
+                    model_names = [settings.MODEL_NAME]
+                return {"models": model_names}
+    except Exception as e:
+        logger.warning(f"Failed to query Ollama models: {e}")
+    # Default fallback
+    return {"models": [settings.MODEL_NAME]}

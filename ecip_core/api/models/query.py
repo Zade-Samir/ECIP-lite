@@ -15,6 +15,7 @@ class QueryRequest(BaseModel):
     question: str = Field(..., description="The natural language question to ask.")
     stream: bool = Field(False, description="Whether to stream the response.")
     history: Optional[List[Message]] = Field(None, description="Previous chat messages for context.")
+    model: Optional[str] = Field(None, description="The custom LLM model name to use.")
 
 
 class CitationModel(BaseModel):
