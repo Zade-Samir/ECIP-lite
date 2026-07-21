@@ -18,3 +18,4 @@ logs/
 
 # Reports
 release_validation_report.json
+.env
