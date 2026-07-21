@@ -27,6 +27,7 @@ class CitationModel(BaseModel):
     method_name: str = ""
     start_line: int = 0
     end_line: int = 0
+    content: Optional[str] = ""
 
 
 class QueryResponse(BaseModel):
