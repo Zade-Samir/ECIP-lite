@@ -1,5 +1,10 @@
 import sqlite3
+import contextvars
 from pathlib import Path
+
+_db_connection_var = contextvars.ContextVar("db_connection", default=None)
+_db_active_path_var = contextvars.ContextVar("db_active_path", default=None)
+_registry_connection_var = contextvars.ContextVar("registry_connection", default=None)
 
 
 class Database:
@@ -12,46 +17,81 @@ class Database:
         from ecip_core.workspace.manager import WorkspaceManager
         current_db_path = WorkspaceManager.get_active_db_path()
 
-        if Database._active_db_path != current_db_path:
+        active_db_path = Database._active_db_path if Database._active_db_path is not None else _db_active_path_var.get()
+        connection = Database._connection if Database._connection is not None else _db_connection_var.get()
+
+        if connection is not None:
+            try:
+                connection.execute("SELECT 1")
+            except (sqlite3.ProgrammingError, sqlite3.OperationalError) as e:
+                if "closed" in str(e).lower() or "cannot operate" in str(e).lower():
+                    connection = None
+                    _db_connection_var.set(None)
+                    Database._connection = None
+
+        if active_db_path != current_db_path and Database._active_db_path is None:
             # Cleanly close old connection if it changes
-            if Database._connection is not None:
+            if connection is not None:
                 try:
-                    Database._connection.close()
+                    connection.close()
                 except Exception:
                     pass
+                connection = None
+                _db_connection_var.set(None)
                 Database._connection = None
-            Database._active_db_path = current_db_path
+            _db_active_path_var.set(current_db_path)
+            active_db_path = current_db_path
 
-        if Database._connection is None:
-            db_file = Path(Database._active_db_path)
+        if connection is None:
+            db_file = Path(active_db_path)
             db_file.parent.mkdir(exist_ok=True)
-            Database._connection = sqlite3.connect(db_file)
-            self.connection = Database._connection
+            connection = sqlite3.connect(db_file)
+            
+            if Database._active_db_path is not None:
+                Database._connection = connection
+            else:
+                _db_connection_var.set(connection)
+                
+            self.connection = connection
             self.initialize()
         else:
-            self.connection = Database._connection
+            self.connection = connection
 
     @classmethod
     def get_registry_connection(cls):
         """Always returns the connection to the master projects registry (data/ecip.db)."""
-        if cls._registry_connection is None:
+        reg_conn = cls._registry_connection if cls._registry_connection is not None else _registry_connection_var.get()
+        if reg_conn is not None:
+            try:
+                reg_conn.execute("SELECT 1")
+            except (sqlite3.ProgrammingError, sqlite3.OperationalError) as e:
+                if "closed" in str(e).lower() or "cannot operate" in str(e).lower():
+                    reg_conn = None
+                    _registry_connection_var.set(None)
+                    cls._registry_connection = None
+
+        if reg_conn is None:
             db_dir = Path("data")
             db_dir.mkdir(exist_ok=True)
-            cls._registry_connection = sqlite3.connect(db_dir / "ecip.db")
-            # Ensure the master registry database has the projects table initialized
+            reg_conn = sqlite3.connect(db_dir / "ecip.db")
+            
+            if cls._registry_connection is not None or _registry_connection_var.get() is None:
+                cls._registry_connection = reg_conn
+                _registry_connection_var.set(reg_conn)
+            
             db = Database()
-            old_active = db._active_db_path
+            old_active = _db_active_path_var.get()
             
             # Temporarily point connection to registry to run init
-            Database._active_db_path = str(db_dir / "ecip.db")
-            conn_backup = Database._connection
-            Database._connection = cls._registry_connection
+            _db_active_path_var.set(str(db_dir / "ecip.db"))
+            conn_backup = _db_connection_var.get()
+            _db_connection_var.set(reg_conn)
             db.initialize()
             
             # Revert states
-            Database._active_db_path = old_active
-            Database._connection = conn_backup
-        return cls._registry_connection
+            _db_active_path_var.set(old_active)
+            _db_connection_var.set(conn_backup)
+        return reg_conn
 
     def initialize(self):
 

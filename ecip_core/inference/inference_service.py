@@ -54,7 +54,8 @@ class InferenceService:
             logger.info("Legacy InferenceRequest input, building prompt...")
             prompt_text = self.prompt_builder.build_prompt(
                 question=prompt.question,
-                context=context
+                context=context,
+                history=getattr(prompt, "history", None)
             )
             citations = []
             prompt_tokens_est = int(len(prompt_text) / 4) + 1

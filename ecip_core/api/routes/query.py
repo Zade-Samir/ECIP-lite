@@ -70,6 +70,8 @@ async def query_pipeline(
     # 3. Execute QA pipeline
     start_time = time.perf_counter()
     
+    history_list = [h.model_dump() for h in request.history] if request.history else None
+
     if request.stream:
         import queue
         import threading
@@ -83,7 +85,11 @@ async def query_pipeline(
 
         def run_pipeline():
             try:
-                inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
+                inference_req = InferenceRequest(
+                    question=request.question,
+                    project_id=request.project_id,
+                    history=history_list
+                )
                 coordinator_res = coordinator.process(inference_req, callback=callback)
                 
                 # Map citations
@@ -131,7 +137,11 @@ async def query_pipeline(
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     else:
         try:
-            inference_req = InferenceRequest(question=request.question, project_id=request.project_id)
+            inference_req = InferenceRequest(
+                question=request.question,
+                project_id=request.project_id,
+                history=history_list
+            )
             coordinator_res = coordinator.process(inference_req)
         except ConnectionError as e:
             logger.error(f"Provider unavailable: {e}")

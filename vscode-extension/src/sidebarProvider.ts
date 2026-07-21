@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export class SidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'ecip-lite-chat-view';
     private _view?: vscode.WebviewView;
+    private _chatHistory: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
 
     constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -47,6 +48,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     vscode.window.showInformationMessage(data.message);
                     break;
                 }
+                case 'selectProject': {
+                    const history = this._chatHistory.get(data.projectId) || [];
+                    this._view?.webview.postMessage({
+                        type: 'restoreHistory',
+                        history: history
+                    });
+                    break;
+                }
             }
         });
 
@@ -54,9 +63,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.fetchWorkspaces();
     }
 
+    private getApiUrl(): string {
+        const config = vscode.workspace.getConfiguration('ecipLite');
+        let url = config.get<string>('apiUrl') || 'http://127.0.0.1:8000';
+        if (url.endsWith('/')) {
+            url = url.slice(0, -1);
+        }
+        return url;
+    }
+
     private async fetchWorkspaces() {
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/v1/workspaces');
+            const response = await fetch(`${this.getApiUrl()}/api/v1/workspaces`);
             if (!response.ok) {
                 throw new Error(`HTTP error ${response.status}`);
             }
@@ -92,7 +110,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }, async (progress) => {
             try {
                 // First, register workspace
-                const regResponse = await fetch('http://127.0.0.1:8000/api/v1/workspaces', {
+                const regResponse = await fetch(`${this.getApiUrl()}/api/v1/workspaces`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -107,7 +125,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
 
                 // Trigger indexing
-                const indexResponse = await fetch('http://127.0.0.1:8000/api/v1/index', {
+                const indexResponse = await fetch(`${this.getApiUrl()}/api/v1/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -138,14 +156,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             return;
         }
 
+        // Retrieve and update history
+        if (!this._chatHistory.has(projectId)) {
+            this._chatHistory.set(projectId, []);
+        }
+        const projectHistory = this._chatHistory.get(projectId)!;
+        projectHistory.push({ role: 'user', content: question });
+
+        // Retrieve sliding window (last 6 messages) to send
+        const apiHistory = projectHistory.slice(-6);
+
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/v1/query', {
+            const response = await fetch(`${this.getApiUrl()}/api/v1/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     project_id: projectId,
                     question: question,
-                    stream: true
+                    stream: true,
+                    history: apiHistory
                 })
             });
 
@@ -166,6 +195,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const decoder = new TextDecoder("utf-8");
             let buffer = "";
             const reader = (response.body as any);
+            let accumulatedAnswer = "";
 
             for await (const chunk of reader) {
                 buffer += decoder.decode(chunk, { stream: true });
@@ -179,11 +209,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     try {
                         const parsed = JSON.parse(line);
                         if (parsed.type === "token") {
+                            accumulatedAnswer += parsed.text;
                             this._view?.webview.postMessage({
                                 type: 'queryToken',
                                 text: parsed.text
                             });
                         } else if (parsed.type === "done") {
+                            projectHistory.push({ role: 'assistant', content: accumulatedAnswer });
                             this._view?.webview.postMessage({
                                 type: 'queryResponse',
                                 citations: parsed.citations || [],
@@ -559,8 +591,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         let currentWorkspaces = [];
 
-        // Update status badge on selection change
-        select.addEventListener('change', updateStatusBadge);
+        // Update status badge and restore history on selection change
+        select.addEventListener('change', () => {
+            updateStatusBadge();
+            vscode.postMessage({
+                type: 'selectProject',
+                projectId: select.value
+            });
+        });
 
         let accumulatedAnswer = "";
 
@@ -687,6 +725,33 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 }
+                case 'restoreHistory': {
+                    // Clear chat area except the greeting
+                    const greeting = chatArea.querySelector('.message.assistant:not([id])');
+                    chatArea.innerHTML = '';
+                    if (greeting && !greeting.querySelector('.citations-container') && !greeting.querySelector('.metadata-footer')) {
+                        chatArea.appendChild(greeting);
+                    } else {
+                        const div = document.createElement('div');
+                        div.className = 'message assistant';
+                        div.innerHTML = 'Hello! Select an indexed project workspace and ask me questions about your Java/Spring Boot code. Click <b>⚡ Index Folder</b> to scan your current directory.';
+                        chatArea.appendChild(div);
+                    }
+
+                    const history = message.history || [];
+                    history.forEach(m => {
+                        if (m.role === 'user') {
+                            renderMessage(m.content, 'user');
+                        } else {
+                            const div = document.createElement('div');
+                            div.className = 'message assistant';
+                            div.innerHTML = '<span class="content">' + formatTextToHtml(m.content) + '</span>';
+                            chatArea.appendChild(div);
+                        }
+                    });
+                    scrollToBottom();
+                    break;
+                }
             }
         });
 
@@ -711,6 +776,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 select.appendChild(opt);
             });
             updateStatusBadge();
+
+            // Trigger history restore for the active project
+            if (select.value) {
+                vscode.postMessage({
+                    type: 'selectProject',
+                    projectId: select.value
+                });
+            }
         }
 
         function renderMessage(text, sender) {

@@ -1,5 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
+
+
+class Message(BaseModel):
+    role: str
+    content: str
 
 
 class QueryRequest(BaseModel):
@@ -9,6 +14,7 @@ class QueryRequest(BaseModel):
     project_id: str = Field(..., description="The unique identifier of the project.")
     question: str = Field(..., description="The natural language question to ask.")
     stream: bool = Field(False, description="Whether to stream the response.")
+    history: Optional[List[Message]] = Field(None, description="Previous chat messages for context.")
 
 
 class CitationModel(BaseModel):
