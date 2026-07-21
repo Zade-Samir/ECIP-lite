@@ -246,7 +246,7 @@ def load_settings() -> Settings:
     # To fix this, we filter out any kwargs that are present in os.environ, allowing env vars to override.
     # We also load dotenv manually if it exists to allow dotenv overrides to override profile defaults.
     from dotenv import dotenv_values
-    dotenv_data = dotenv_values(".env")
+    dotenv_data = dotenv_values(".env") if profile == "development" else {}
 
     # Remove keys from init_kwargs if they exist in env or dotenv, so env/dotenv overrides win
     flat_to_domain_mapping = {

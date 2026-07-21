@@ -69,9 +69,10 @@ class InferenceService:
             raise ValueError("Prompt text cannot be empty")
 
         # 3. Execute generation
+        model_name = getattr(prompt, "model", None) or settings.MODEL_NAME
         start_time = time.perf_counter()
         try:
-            response = provider.generate(prompt_text, settings.MODEL_NAME, callback=callback)
+            response = provider.generate(prompt_text, model_name, callback=callback)
         except TimeoutError as e:
             logger.error(f"Timeout: {e}")
             raise
