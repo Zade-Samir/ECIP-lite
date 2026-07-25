@@ -104,8 +104,11 @@ class IndexBuilder:
         deleted_file_paths = [p for p in db_file_paths if p not in active_files]
         for p in deleted_file_paths:
             self.repository.delete_by_file_path(p)
-            self.repository.delete_class_edges(project_id, Path(p).stem)
-            self.synchronizer.delete_class(project_id, Path(p).stem)
+            try:
+                self.repository.delete_class_edges(project_id, Path(p).stem)
+                self.synchronizer.delete_class(project_id, Path(p).stem)
+            except Exception as e:
+                logger.warning(f"Graph cleanup skipped (Neo4j unavailable?): {e}")
             self.faiss_store.remove_file(p)
             stats["removed"] += 1
 
@@ -206,11 +209,17 @@ class IndexBuilder:
                     # Save metadata and file_hash ONLY after successful parse+chunk
                     self.repository.save(parsed, file_hash=curr_hash)
 
-                    # Build class dependency edges
-                    self.graph_builder.build_class_edges(project_id, parsed, project_classes)
+                    # Build class dependency edges (optional: Neo4j may not be running)
+                    try:
+                        self.graph_builder.build_class_edges(project_id, parsed, project_classes)
+                    except Exception as e:
+                        logger.warning(f"Graph edge build skipped (Neo4j unavailable?): {e}")
 
-                    # Sync graph database (Project, Package, Class, Method nodes)
-                    self.synchronizer.sync_class(project_id, parsed)
+                    # Sync graph database (optional: Neo4j may not be running)
+                    try:
+                        self.synchronizer.sync_class(project_id, parsed)
+                    except Exception as e:
+                        logger.warning(f"Graph sync skipped (Neo4j unavailable?): {e}")
 
                 # Generate embeddings in batch for all chunks of this file
                 if chunks:
