@@ -570,6 +570,111 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    private smartMergeJavaCode(originalText: string, snippetText: string): string {
+        if (!originalText || !originalText.trim()) {
+            return snippetText;
+        }
+
+        const snippetLines = snippetText.split('\n');
+        const originalLines = originalText.split('\n');
+
+        const originalImportSet = new Set(
+            originalLines
+                .filter(line => line.trim().startsWith('import '))
+                .map(line => line.trim())
+        );
+
+        const wildcardImports = Array.from(originalImportSet).filter(imp => imp.endsWith('.*;'));
+
+        const newImports: string[] = [];
+        for (const line of snippetLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('import ')) {
+                if (!originalImportSet.has(trimmed)) {
+                    const packagePkg = trimmed.replace('import ', '').replace(';', '');
+                    const covered = wildcardImports.some(w => {
+                        const prefix = w.replace('import ', '').replace('.*;', '');
+                        return packagePkg.startsWith(prefix);
+                    });
+
+                    if (!covered) {
+                        newImports.push(trimmed);
+                        originalImportSet.add(trimmed);
+                    }
+                }
+            }
+        }
+
+        let snippetBody = snippetText;
+        const classDeclIndex = snippetText.indexOf('class ');
+        if (classDeclIndex !== -1) {
+            const firstBrace = snippetText.indexOf('{', classDeclIndex);
+            const lastBrace = snippetText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+                snippetBody = snippetText.substring(firstBrace + 1, lastBrace);
+            }
+        }
+
+        const bodyLines = snippetBody.split('\n');
+        const cleanedBodyLines: string[] = [];
+
+        for (let i = 0; i < bodyLines.length; i++) {
+            const line = bodyLines[i];
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('package ') || trimmed.startsWith('import ') || trimmed.startsWith('@RestController') || trimmed.startsWith('@RequestMapping') || trimmed.startsWith('public class ') || trimmed.startsWith('class ')) {
+                continue;
+            }
+
+            if (trimmed.startsWith('private ') || trimmed.startsWith('protected ') || trimmed.startsWith('public ')) {
+                const isField = trimmed.endsWith(';') && !trimmed.includes('(');
+                if (isField && originalText.includes(trimmed)) {
+                    continue;
+                }
+            }
+
+            cleanedBodyLines.push(line);
+        }
+
+        const newCodeToInsert = cleanedBodyLines.join('\n').trim();
+
+        let mergedText = originalText;
+        if (newImports.length > 0) {
+            let lastImportIdx = -1;
+            for (let i = 0; i < originalLines.length; i++) {
+                if (originalLines[i].trim().startsWith('import ')) {
+                    lastImportIdx = i;
+                }
+            }
+
+            if (lastImportIdx !== -1) {
+                const before = originalLines.slice(0, lastImportIdx + 1).join('\n');
+                const after = originalLines.slice(lastImportIdx + 1).join('\n');
+                mergedText = before + '\n' + newImports.join('\n') + after;
+            } else {
+                const pkgIdx = originalLines.findIndex(l => l.trim().startsWith('package '));
+                if (pkgIdx !== -1) {
+                    const before = originalLines.slice(0, pkgIdx + 1).join('\n');
+                    const after = originalLines.slice(pkgIdx + 1).join('\n');
+                    mergedText = before + '\n\n' + newImports.join('\n') + after;
+                }
+            }
+        }
+
+        if (newCodeToInsert) {
+            const lastBraceIndex = mergedText.lastIndexOf('}');
+            if (lastBraceIndex !== -1) {
+                mergedText = mergedText.substring(0, lastBraceIndex) + 
+                    "\n\n    " + newCodeToInsert + "\n" + 
+                    mergedText.substring(lastBraceIndex);
+            } else {
+                mergedText += "\n\n" + newCodeToInsert;
+            }
+        }
+
+        return mergedText;
+    }
+
     private async proposeDiffReview(content: string) {
         try {
             const editor = vscode.window.activeTextEditor;
@@ -582,17 +687,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const originalUri = document.uri;
             const fileName = path.basename(document.fileName);
 
-            let proposedText = content;
             const originalText = document.getText();
-
-            if (!content.includes('class ') && !content.startsWith('package ')) {
-                const lastBraceIndex = originalText.lastIndexOf('}');
-                if (lastBraceIndex !== -1) {
-                    proposedText = originalText.substring(0, lastBraceIndex) + 
-                        "\n    // Proposed Method from ECIP AI\n    " + content.trim() + "\n" + 
-                        originalText.substring(lastBraceIndex);
-                }
-            }
+            const proposedText = this.smartMergeJavaCode(originalText, content);
 
             const proposedUri = vscode.Uri.parse(`ecip-proposed:/${fileName}`);
             ProposedContentProvider.getInstance().setContent(proposedUri, proposedText);
