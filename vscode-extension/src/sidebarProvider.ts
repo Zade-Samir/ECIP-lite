@@ -314,14 +314,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     public async indexCurrentWorkspace() {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders || folders.length === 0) {
-            vscode.window.showErrorMessage('No workspace folder open in VS Code to index.');
-            return;
-        }
-
-        let projectPath = folders[0].uri.fsPath;
-        let projectAlias = folders[0].name;
+        let projectPath: string | null = null;
+        let projectAlias: string | null = null;
 
         const activeEditor = vscode.window.activeTextEditor;
         if (activeEditor) {
@@ -341,37 +335,61 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 if (parent === currentDir) break;
                 currentDir = parent;
             }
+
+            if (!projectPath) {
+                projectPath = path.dirname(activeFilePath);
+                projectAlias = path.basename(projectPath);
+            }
         }
+
+        if (!projectPath) {
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders && folders.length > 0) {
+                projectPath = folders[0].uri.fsPath;
+                projectAlias = folders[0].name;
+            }
+        }
+
+        if (!projectPath || !projectAlias) {
+            vscode.window.showErrorMessage('No active file or workspace folder open in VS Code to index.');
+            return;
+        }
+
+        const finalProjectPath = projectPath;
+        const finalProjectAlias = projectAlias;
 
         // Notify user indexing started
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: `ECIP Lite: Indexing ${projectAlias}...`,
+            title: `ECIP Lite: Indexing ${finalProjectAlias}...`,
             cancellable: false
         }, async (progress) => {
             try {
-                // First, register workspace
                 const regResponse = await fetch(`${this.getApiUrl()}/api/v1/workspaces`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_id: projectAlias,
-                        alias: projectAlias,
-                        root_path: projectPath
+                        project_id: finalProjectAlias,
+                        alias: finalProjectAlias,
+                        root_path: finalProjectPath
                     })
                 });
 
                 if (!regResponse.ok && regResponse.status !== 409 && regResponse.status !== 500) {
-                    throw new Error('Failed to register workspace.');
+                    const regErr = await regResponse.text();
+                    throw new Error(`Workspace registration failed: ${regErr}`);
                 }
 
-                // Trigger indexing
+                await fetch(`${this.getApiUrl()}/api/v1/workspaces/${finalProjectAlias}/activate`, {
+                    method: 'PUT'
+                });
+
                 const indexResponse = await fetch(`${this.getApiUrl()}/api/v1/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_path: projectPath,
-                        project_alias: projectAlias
+                        project_path: finalProjectPath,
+                        project_alias: finalProjectAlias
                     })
                 });
 
@@ -380,7 +398,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     throw new Error(`Indexing failed: ${errorDetails}`);
                 }
 
-                vscode.window.showInformationMessage(`Successfully indexed project: ${projectAlias}`);
+                const resData: any = await indexResponse.json();
+                const totalFiles = (resData.files_scanned !== undefined) ? resData.files_scanned : (resData.files_indexed || 0);
+                vscode.window.showInformationMessage(
+                    `ECIP: Successfully indexed ${finalProjectAlias}! (${totalFiles} files scanned)`
+                );
                 await this.fetchWorkspaces();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Indexing error: ${err.message}`);
@@ -2251,32 +2273,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         function updateModelDropdown(models, selected) {
             logWebview("updateModelDropdown called. models=" + JSON.stringify(models) + ", selected=" + selected);
-            if (!modelSelect || !selectedModelLabel) {
-                logWebview("updateModelDropdown early return because elements missing");
-                return;
-            }
-            modelSelect.innerHTML = '';
-            
-            if (models.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = selected || 'qwen2.5-coder:3b';
-                opt.textContent = selected || 'qwen2.5-coder:3b';
-                modelSelect.appendChild(opt);
-                selectedModelLabel.textContent = selected || 'qwen2.5-coder:3b';
-                return;
-            }
+            const sel = modelSelect || document.getElementById('model-select');
+            const label = selectedModelLabel || document.getElementById('selected-model-label');
+            if (!sel || !label) return;
 
-            models.forEach(model => {
+            sel.innerHTML = '';
+            const mList = (models && models.length > 0) ? models : ['qwen2.5-coder:3b'];
+            const activeSel = selected || mList[0];
+
+            mList.forEach(m => {
                 const opt = document.createElement('option');
-                opt.value = model;
-                opt.textContent = model;
-                if (model === selected) {
+                opt.value = m;
+                opt.textContent = m;
+                if (m === activeSel) {
                     opt.selected = true;
                 }
-                modelSelect.appendChild(opt);
+                sel.appendChild(opt);
             });
 
-            selectedModelLabel.textContent = selected || models[0];
+            label.textContent = activeSel;
         }
 
         if (modelSelect) {
