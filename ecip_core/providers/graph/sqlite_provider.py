@@ -240,3 +240,29 @@ class SqliteGraphProvider(GraphProvider):
         except Exception as e:
             logger.error(f"SQLite graph error: {e}")
             raise e
+
+    def create_cross_repo_relationship(
+        self,
+        source_id: str,
+        source_project: str,
+        target_id: str,
+        target_project: str,
+        rel_type: str,
+        properties: Optional[Dict[str, Any]] = None
+    ) -> None:
+        try:
+            conn = self._get_conn()
+            cursor = conn.cursor()
+            discovered_at = datetime.datetime.utcnow().isoformat() + "Z"
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO dependency_edges (
+                    project_id, source_class, target_class, relationship_type, discovered_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (source_project, source_id, f"{target_project}:{target_id}", rel_type, discovered_at)
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"SQLite graph error: {e}")
+            raise e

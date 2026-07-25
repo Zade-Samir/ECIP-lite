@@ -266,3 +266,30 @@ class Neo4jGraphProvider(GraphProvider):
             """
             session.run(query, project_id=project_id)
             logger.info("Graph synchronized: project removed")
+
+    def create_cross_repo_relationship(
+        self,
+        source_id: str,
+        source_project: str,
+        target_id: str,
+        target_project: str,
+        rel_type: str,
+        properties: Optional[Dict[str, Any]] = None
+    ) -> None:
+        self._ensure_connected()
+        props = properties or {}
+        with self.driver.session() as session:
+            query = f"""
+            MATCH (a:Class {{id: $source_id, project_id: $source_project}})
+            MATCH (b:Class {{id: $target_id, project_id: $target_project}})
+            MERGE (a)-[r:{rel_type}]->(b)
+            SET r += $properties
+            """
+            session.run(
+                query,
+                source_id=source_id,
+                source_project=source_project,
+                target_id=target_id,
+                target_project=target_project,
+                properties=props
+            )
