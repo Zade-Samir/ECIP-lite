@@ -1174,6 +1174,114 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             justify-content: space-between;
         }
 
+        .pending-card {
+            background-color: #1e1e1e;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pending-file-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #2a2a2a;
+            border: 1px solid #3d3d3d;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .pending-file-row:hover {
+            background-color: #333333;
+            border-color: #555555;
+        }
+
+        .diff-badge-add {
+            color: #4ade80;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .diff-badge-del {
+            color: #f87171;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pending-file-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .pending-file-path {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-left: auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 130px;
+        }
+
+        .pending-actions-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 4px;
+        }
+
+        .pending-files-count {
+            font-size: 11px;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pending-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.btn-reject-all {
+            background: none;
+            border: none;
+            color: #cbd5e1;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        button.btn-reject-all:hover {
+            color: #f87171;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        button.btn-accept-all {
+            background-color: #2563eb;
+            border: none;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button.btn-accept-all:hover {
+            background-color: #1d4ed8;
+        }
+
         .input-container {
             background-color: #1a1a1a;
             border: 1px solid var(--border-color);
@@ -1380,6 +1488,24 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <div class="chat-area" id="chat-area">
         <div class="message assistant">
             Hello! Select an indexed project workspace and ask me questions about your Java/Spring Boot code. Click <b>⚡ Index Folder</b> to scan your current directory.
+        </div>
+    </div>
+
+    <!-- Pending Changes Bar (Antigravity & Copilot Edits style) -->
+    <div class="pending-card" id="pending-changes-card" style="display: none;">
+        <div class="pending-file-row" id="pending-file-item" title="Click to view Side-by-Side Diff">
+            <span>📙</span>
+            <span class="diff-badge-add" id="pending-stat-add">+0</span>
+            <span class="diff-badge-del" id="pending-stat-del">-0</span>
+            <span class="pending-file-name" id="pending-file-name">filename.java</span>
+            <span class="pending-file-path" id="pending-file-path">path/to/file</span>
+        </div>
+        <div class="pending-actions-row">
+            <span class="pending-files-count">📄 1 File With Changes</span>
+            <div class="pending-buttons">
+                <button class="btn-reject-all" id="btn-pending-reject">Reject all</button>
+                <button class="btn-accept-all" id="btn-pending-accept">Accept all</button>
+            </div>
         </div>
     </div>
 
@@ -1705,6 +1831,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                             }
 
                             renderAssistantMetadata(activeBubble, message);
+
+                            // Trigger Pending Changes Bar if code block is generated
+                            const codePre = activeBubble.querySelector('.code-block-container pre');
+                            if (codePre) {
+                                const codeText = codePre.innerText || codePre.textContent;
+                                let citationPath = "";
+                                if (message.citations && message.citations.length > 0) {
+                                    citationPath = message.citations[0].file_path;
+                                }
+                                updatePendingCard(codeText, citationPath);
+                            }
                         }
                         activeBubble.id = "";
                     }
@@ -1826,6 +1963,82 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             bubble.appendChild(footer);
             
             scrollToBottom();
+        }
+
+        let pendingCodeText = "";
+
+        function updatePendingCard(codeText, citationFile) {
+            if (!codeText || !codeText.trim()) return;
+
+            pendingCodeText = codeText;
+            const linesCount = codeText.trim().split('\n').length;
+            const addCount = '+' + linesCount;
+            const delCount = '-0';
+
+            let fileName = "Modified File";
+            let filePath = "";
+
+            if (citationFile) {
+                filePath = citationFile;
+                fileName = citationFile.split('/').pop().split('\\').pop();
+            } else {
+                const classMatch = codeText.match(/(?:class|interface)\s+([A-Za-z0-9_]+)/);
+                if (classMatch) {
+                    fileName = classMatch[1] + ".java";
+                }
+            }
+
+            const card = document.getElementById('pending-changes-card');
+            const nameEl = document.getElementById('pending-file-name');
+            const pathEl = document.getElementById('pending-file-path');
+            const addEl = document.getElementById('pending-stat-add');
+            const delEl = document.getElementById('pending-stat-del');
+
+            if (card && nameEl && addEl && delEl) {
+                nameEl.textContent = fileName;
+                pathEl.textContent = filePath;
+                addEl.textContent = addCount;
+                delEl.textContent = delCount;
+                card.style.display = 'flex';
+                scrollToBottom(true);
+            }
+        }
+
+        const fileItem = document.getElementById('pending-file-item');
+        if (fileItem) {
+            fileItem.addEventListener('click', () => {
+                if (pendingCodeText) {
+                    vscode.postMessage({
+                        type: 'proposeDiff',
+                        content: pendingCodeText
+                    });
+                }
+            });
+        }
+
+        const btnAccept = document.getElementById('btn-pending-accept');
+        if (btnAccept) {
+            btnAccept.addEventListener('click', () => {
+                if (pendingCodeText) {
+                    vscode.postMessage({
+                        type: 'proposeDiff',
+                        content: pendingCodeText
+                    });
+                    document.getElementById('pending-changes-card').style.display = 'none';
+                }
+            });
+        }
+
+        const btnReject = document.getElementById('btn-pending-reject');
+        if (btnReject) {
+            btnReject.addEventListener('click', () => {
+                pendingCodeText = "";
+                document.getElementById('pending-changes-card').style.display = 'none';
+                vscode.postMessage({
+                    type: 'showInfo',
+                    message: 'ECIP: Proposed changes rejected.'
+                });
+            });
         }
 
         window.copyCodeBlock = function(btn) {
