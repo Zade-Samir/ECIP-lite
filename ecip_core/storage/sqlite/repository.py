@@ -147,6 +147,20 @@ class JavaRepository:
             logger.error("Database failure")
             raise e
 
+    def clear_file_hash(self, file_path: str) -> None:
+        """Set file_hash to NULL so the file is treated as new on next indexing pass."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "UPDATE java_files SET file_hash = NULL WHERE file_path = ?",
+                (file_path,)
+            )
+            self.connection.commit()
+        except Exception as e:
+            logger.error("Database failure")
+            raise e
+
+
     def get_all_file_paths(self) -> list[str]:
         try:
             cursor = self.connection.cursor()
