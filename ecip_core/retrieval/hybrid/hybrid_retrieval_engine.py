@@ -25,6 +25,8 @@ class HybridRetrievalEngine:
         self.semantic_search = semantic_search_service
         self.bm25_weight = bm25_weight
         self.vector_weight = vector_weight
+        from ecip_core.reranking.cross_encoder import CrossEncoderReRanker
+        self.reranker = CrossEncoderReRanker()
 
     def retrieve(self, query: str, k: int = 5) -> List[HybridResult]:
         """
@@ -176,6 +178,9 @@ class HybridRetrievalEngine:
             key=lambda x: (-x[0], x[1].chunk_id)
         )
 
-        results = [item[1] for item in sorted_candidates][:k]
+        candidates = [item[1] for item in sorted_candidates]
         logger.info("Rank fusion complete")
-        return results
+
+        # 7. Apply Re-ranking stage
+        results = self.reranker.rerank(query, candidates)
+        return results[:k]
