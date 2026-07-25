@@ -56,7 +56,8 @@ class CitationEngine:
                 start_line=chunk.start_line,
                 end_line=chunk.end_line,
                 chunk_id=chunk.chunk_id,
-                confidence=min(1.0, max(0.0, chunk.score))
+                confidence=min(1.0, max(0.0, chunk.score)),
+                content=chunk.content or ""
             )
             citations.append(citation)
         return citations
