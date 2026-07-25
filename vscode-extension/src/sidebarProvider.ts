@@ -198,27 +198,74 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const data: any = await response.json();
             this.logDebug(`fetchWorkspaces data: ${JSON.stringify(data)}`);
 
-            // Proactively check if current folder is registered
-            const folders = vscode.workspace.workspaceFolders;
-            if (folders && folders.length > 0) {
-                const folderName = folders[0].name;
-                const folderPath = folders[0].uri.fsPath;
-                const registered = (data.workspaces || []).find((w: any) => w.project_id === folderName);
+            // Auto-select the best indexed project to show in UI
+            const allWorkspaces: any[] = data.workspaces || [];
+            const indexedProjects = allWorkspaces.filter((w: any) => w.indexed_files && w.indexed_files > 0);
+            let bestActive = data.active;
 
-                if (registered) {
-                    if (data.active !== folderName) {
-                        try {
-                            await fetch(`${this.getApiUrl()}/api/v1/workspaces/${folderName}/activate`, {
-                                method: 'PUT'
-                            });
-                            data.active = folderName;
-                            this.logDebug(`Automatically activated existing workspace: ${folderName}`);
-                        } catch (e) {
-                            this.logDebug(`Failed to auto-activate workspace: ${e}`);
-                        }
+            if (indexedProjects.length > 0) {
+                // Prefer the project matching the active editor file
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor) {
+                    const activeFilePath = activeEditor.document.uri.fsPath;
+                    const matchedProject = indexedProjects.find((w: any) => activeFilePath.startsWith(w.root_path));
+                    if (matchedProject) {
+                        bestActive = matchedProject.project_id;
+                    } else {
+                        // Fall back to the project with most indexed files
+                        const top = indexedProjects.reduce((a: any, b: any) => 
+                            (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexedProjects[0]);
+                        bestActive = top.project_id;
                     }
                 } else {
-                    if (!this._isProactivelyIndexing.has(folderName)) {
+                    const top = indexedProjects.reduce((a: any, b: any) => 
+                        (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexedProjects[0]);
+                    bestActive = top.project_id;
+                }
+
+                if (bestActive && bestActive !== data.active) {
+                    try {
+                        await fetch(`${this.getApiUrl()}/api/v1/workspaces/${bestActive}/activate`, { method: 'PUT' });
+                        this.logDebug(`Auto-switched active workspace to: ${bestActive}`);
+                    } catch (e) {
+                        this.logDebug(`Failed to auto-activate: ${e}`);
+                    }
+                }
+            } else {
+                // No indexed projects yet — try to index the current VS Code workspace or active file project
+                const activeEditor = vscode.window.activeTextEditor;
+                let folderName: string | null = null;
+                let folderPath: string | null = null;
+
+                if (activeEditor) {
+                    let currentDir = require('path').dirname(activeEditor.document.uri.fsPath);
+                    while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                        if (
+                            require('fs').existsSync(require('path').join(currentDir, 'pom.xml')) ||
+                            require('fs').existsSync(require('path').join(currentDir, 'build.gradle')) ||
+                            require('fs').existsSync(require('path').join(currentDir, '.git'))
+                        ) {
+                            folderPath = currentDir;
+                            folderName = require('path').basename(currentDir);
+                            break;
+                        }
+                        const parent = require('path').dirname(currentDir);
+                        if (parent === currentDir) break;
+                        currentDir = parent;
+                    }
+                }
+
+                if (!folderName) {
+                    const folders = vscode.workspace.workspaceFolders;
+                    if (folders && folders.length > 0) {
+                        folderName = folders[0].name;
+                        folderPath = folders[0].uri.fsPath;
+                    }
+                }
+
+                if (folderName && folderPath) {
+                    const alreadyRegistered = allWorkspaces.find((w: any) => w.project_id === folderName);
+                    if (!alreadyRegistered && !this._isProactivelyIndexing.has(folderName)) {
                         this._isProactivelyIndexing.add(folderName);
                         this.logDebug(`Proactively registering and indexing: ${folderName}`);
                         this.proactiveIndexCurrentWorkspace(folderName, folderPath);
@@ -228,8 +275,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             this._view?.webview.postMessage({
                 type: 'workspacesList',
-                workspaces: data.workspaces || [],
-                active: data.active || null
+                workspaces: allWorkspaces,
+                active: bestActive || null
             });
         } catch (err: any) {
             this.logDebug(`fetchWorkspaces error: ${err.message || err}`);
@@ -288,7 +335,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (response.ok) {
                 const data: any = await response.json();
                 this.logDebug(`fetchModelsList data: ${JSON.stringify(data)}`);
-                vscode.window.showInformationMessage(`Models fetched: ${JSON.stringify(data.models)}`);
                 this._view?.webview.postMessage({
                     type: 'modelsList',
                     models: data.models || [],
@@ -1962,18 +2008,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            let bestId = activeId;
+            // If the backend-suggested active is 'default' with 0 files, prefer first indexed project
+            if (!bestId || bestId === 'default') {
+                const firstIndexed = workspaces.find(w => w.indexed_files && w.indexed_files > 0);
+                if (firstIndexed) bestId = firstIndexed.project_id;
+            }
+
             workspaces.forEach(w => {
                 const opt = document.createElement('option');
                 opt.value = w.project_id;
-                opt.textContent = w.alias + (w.is_active ? ' (active)' : '');
-                if (w.project_id === activeId || w.is_active) {
+                const fileCount = (w.indexed_files && w.indexed_files > 0) ? ' (' + w.indexed_files + ' files)' : '';
+                opt.textContent = w.alias + fileCount;
+                if (w.project_id === bestId) {
                     opt.selected = true;
                 }
                 select.appendChild(opt);
             });
             updateStatusBadge();
 
-            // Trigger history restore for the active project
             if (select.value) {
                 vscode.postMessage({
                     type: 'selectProject',
