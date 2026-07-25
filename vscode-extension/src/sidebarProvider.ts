@@ -320,8 +320,28 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             return;
         }
 
-        const projectPath = folders[0].uri.fsPath;
-        const projectAlias = folders[0].name;
+        let projectPath = folders[0].uri.fsPath;
+        let projectAlias = folders[0].name;
+
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const activeFilePath = activeEditor.document.uri.fsPath;
+            let currentDir = path.dirname(activeFilePath);
+            while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                if (
+                    fs.existsSync(path.join(currentDir, 'pom.xml')) || 
+                    fs.existsSync(path.join(currentDir, 'build.gradle')) || 
+                    fs.existsSync(path.join(currentDir, '.git'))
+                ) {
+                    projectPath = currentDir;
+                    projectAlias = path.basename(currentDir);
+                    break;
+                }
+                const parent = path.dirname(currentDir);
+                if (parent === currentDir) break;
+                currentDir = parent;
+            }
+        }
 
         // Notify user indexing started
         vscode.window.withProgress({
@@ -369,20 +389,47 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     public async indexSingleFile(filePath: string) {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders || folders.length === 0) { return; }
-
-        const projectPath = folders[0].uri.fsPath;
-        const projectAlias = folders[0].name;
-
-        // Only re-index files that belong to the current workspace
-        if (!filePath.startsWith(projectPath)) { return; }
-
         const SUPPORTED_EXTENSIONS = ['.java', '.sql', '.properties', '.yml', '.yaml'];
         const ext = filePath.slice(filePath.lastIndexOf('.'));
         if (!SUPPORTED_EXTENSIONS.includes(ext)) { return; }
 
-        // Debounce: cancel previous timer for this file if another save comes quickly
+        let targetProjectPath: string | null = null;
+        let targetProjectAlias: string | null = null;
+
+        const folders = vscode.workspace.workspaceFolders;
+        if (folders && folders.length > 0) {
+            for (const folder of folders) {
+                if (filePath.startsWith(folder.uri.fsPath)) {
+                    targetProjectPath = folder.uri.fsPath;
+                    targetProjectAlias = folder.name;
+                    break;
+                }
+            }
+        }
+
+        if (!targetProjectPath) {
+            let currentDir = path.dirname(filePath);
+            while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                if (
+                    fs.existsSync(path.join(currentDir, 'pom.xml')) || 
+                    fs.existsSync(path.join(currentDir, 'build.gradle')) || 
+                    fs.existsSync(path.join(currentDir, '.git'))
+                ) {
+                    targetProjectPath = currentDir;
+                    targetProjectAlias = path.basename(currentDir);
+                    break;
+                }
+                const parent = path.dirname(currentDir);
+                if (parent === currentDir) break;
+                currentDir = parent;
+            }
+
+            if (!targetProjectPath) {
+                targetProjectPath = path.dirname(filePath);
+                targetProjectAlias = path.basename(targetProjectPath);
+            }
+        }
+
         const existingTimer = this._saveDebounceTimers.get(filePath);
         if (existingTimer) {
             clearTimeout(existingTimer);
@@ -390,15 +437,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         const timer = setTimeout(async () => {
             this._saveDebounceTimers.delete(filePath);
-            this.logDebug(`Auto re-indexing saved file: ${filePath}`);
+            this.logDebug(`Auto re-indexing saved file: ${filePath} in project ${targetProjectAlias}`);
 
             try {
                 const response = await fetch(`${this.getApiUrl()}/api/v1/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_path: projectPath,
-                        project_alias: projectAlias
+                        project_path: targetProjectPath,
+                        project_alias: targetProjectAlias
                     })
                 });
 
@@ -408,13 +455,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         `$(sync~spin) ECIP: Re-indexed ${fileName}`,
                         3000
                     );
+                    await this.fetchWorkspaces();
                 } else {
                     this.logDebug(`Auto re-index failed with status: ${response.status}`);
                 }
             } catch (e) {
                 this.logDebug(`Auto re-index fetch error: ${e}`);
             }
-        }, 1500); // 1.5 sec debounce: wait for rapid successive saves to settle
+        }, 1000);
 
         this._saveDebounceTimers.set(filePath, timer);
     }
