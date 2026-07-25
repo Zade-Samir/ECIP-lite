@@ -194,6 +194,7 @@ Response Rules:
 3. Cite file paths and line ranges where appropriate (e.g. [UserService.java:10-20]).
 4. Clearly state when context is insufficient.
 5. Avoid speculation.
+6. **Code Style & Annotation Mirroring**: When writing or modifying code snippets for a class, strictly match the existing target file's annotations (`@GetMapping`, `@DeleteMapping`, `@PathVariable`, `@RequestBody`), dependency injection style (`@Autowired`), and service layer delegation patterns.
 
 User Question:
 {question}
