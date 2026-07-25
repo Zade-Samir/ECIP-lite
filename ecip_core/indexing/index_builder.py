@@ -216,6 +216,17 @@ class IndexBuilder:
                         logger.error("FAISS update failure")
                         raise e
 
+        # Generate Git history chunks
+        git_chunks = self._generate_git_chunks(project_id, project_path, java_files)
+        if git_chunks:
+            try:
+                embeddings = self.embedding_service.generate_batch(git_chunks)
+                for embedding in embeddings:
+                    self.faiss_store.add(embedding)
+                logger.info("History updated")
+            except Exception as e:
+                logger.error(f"Failed to index git history chunks: {e}")
+
         # Build and save BM25 index
         try:
             from ecip_core.search.bm25.bm25 import BM25Index
@@ -375,3 +386,81 @@ class IndexBuilder:
                 created_at=datetime.datetime.utcnow().isoformat() + "Z"
             )
         ]
+
+    def _generate_git_chunks(self, project_id: str, project_path: str, java_files: list) -> list:
+        from ecip_core.git.scanner import GitRepositoryScanner
+        from ecip_core.chunking.code_chunk import CodeChunk
+        import datetime
+        from ecip_core.chunking.java_chunker import compute_hash
+
+        scanner = GitRepositoryScanner()
+        if not scanner.is_git_repo(project_path):
+            return []
+
+        chunks = []
+        try:
+            repo_meta = scanner.scan(project_path)
+            
+            # 1. Repository History chunk
+            repo_text = f"Git Repository History details for project: {project_id}\n"
+            repo_text += f"Active Branch: {repo_meta.branch}\n"
+            repo_text += f"HEAD Commit Hash: {repo_meta.head_commit}\n"
+            repo_text += "Recent Commits:\n"
+            for c in repo_meta.commits[:15]:
+                repo_text += f"  - {c.commit_hash[:8]} by {c.author} on {c.date}: {c.message}\n"
+                
+            chunks.append(
+                CodeChunk(
+                    chunk_id=f"git_repo_{project_id}_history",
+                    project_id=project_id,
+                    file_path=project_path,
+                    file_name="git_history",
+                    class_name="GIT_HISTORY",
+                    method_name=None,
+                    chunk_type="GIT_HISTORY",
+                    content=repo_text,
+                    source_code=repo_text,
+                    start_line=1,
+                    end_line=1,
+                    content_hash=compute_hash(repo_text),
+                    created_at=datetime.datetime.utcnow().isoformat() + "Z"
+                )
+            )
+
+            # 2. File evolution and ownership chunks
+            for file in java_files:
+                file_path_str = str(file.resolve())
+                try:
+                    rel_path = str(file.relative_to(project_path))
+                except Exception:
+                    rel_path = file.name
+                    
+                file_git = scanner.scan_file_history(project_path, rel_path)
+                if file_git:
+                    git_text = f"Git File Evolution & Ownership stats for file '{rel_path}':\n"
+                    git_text += f"  - Created by commit: {file_git.creation_commit}\n"
+                    git_text += f"  - Last modified by commit: {file_git.last_modified_commit}\n"
+                    git_text += f"  - Total revisions: {file_git.total_revisions}\n"
+                    git_text += f"  - Contributors/Authors: {', '.join(file_git.contributors)}\n"
+                    
+                    chunks.append(
+                        CodeChunk(
+                            chunk_id=f"git_file_{file.name}_evolution",
+                            project_id=project_id,
+                            file_path=file_path_str,
+                            file_name=file.name,
+                            class_name=file.stem,
+                            method_name=None,
+                            chunk_type="GIT_FILE_EVOLUTION",
+                            content=git_text,
+                            source_code=git_text,
+                            start_line=1,
+                            end_line=1,
+                            content_hash=compute_hash(git_text),
+                            created_at=datetime.datetime.utcnow().isoformat() + "Z"
+                        )
+                    )
+        except Exception as e:
+            logger.error(f"Failed to scan Git metadata: {e}")
+            
+        return chunks
