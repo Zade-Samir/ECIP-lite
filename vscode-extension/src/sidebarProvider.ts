@@ -8,6 +8,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private _chatHistory: Map<string, Array<{ role: 'user' | 'assistant'; content: string }>> = new Map();
 
     private _selectedModel: string | undefined;
+    private _isProactivelyIndexing: Set<string> = new Set();
 
     private logDebug(msg: string) {
         try {
@@ -93,6 +94,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         type: 'restoreHistory',
                         history: history
                     });
+                    try {
+                        fetch(`${this.getApiUrl()}/api/v1/workspaces/${data.projectId}/activate`, {
+                            method: 'PUT'
+                        }).then(res => {
+                            if (res.ok) {
+                                this.logDebug(`Activated workspace ${data.projectId} in backend`);
+                            }
+                        }).catch(e => {
+                            this.logDebug(`Failed to activate workspace: ${e}`);
+                        });
+                    } catch (e) {
+                        this.logDebug(`Failed to activate workspace: ${e}`);
+                    }
                     break;
                 }
                 case 'ready': {
@@ -143,6 +157,35 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
             const data: any = await response.json();
             this.logDebug(`fetchWorkspaces data: ${JSON.stringify(data)}`);
+
+            // Proactively check if current folder is registered
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders && folders.length > 0) {
+                const folderName = folders[0].name;
+                const folderPath = folders[0].uri.fsPath;
+                const registered = (data.workspaces || []).find((w: any) => w.project_id === folderName);
+
+                if (registered) {
+                    if (data.active !== folderName) {
+                        try {
+                            await fetch(`${this.getApiUrl()}/api/v1/workspaces/${folderName}/activate`, {
+                                method: 'PUT'
+                            });
+                            data.active = folderName;
+                            this.logDebug(`Automatically activated existing workspace: ${folderName}`);
+                        } catch (e) {
+                            this.logDebug(`Failed to auto-activate workspace: ${e}`);
+                        }
+                    }
+                } else {
+                    if (!this._isProactivelyIndexing.has(folderName)) {
+                        this._isProactivelyIndexing.add(folderName);
+                        this.logDebug(`Proactively registering and indexing: ${folderName}`);
+                        this.proactiveIndexCurrentWorkspace(folderName, folderPath);
+                    }
+                }
+            }
+
             this._view?.webview.postMessage({
                 type: 'workspacesList',
                 workspaces: data.workspaces || [],
@@ -154,6 +197,46 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 type: 'backendError',
                 message: 'Failed to connect to ECIP Lite daemon. Make sure uvicorn is running on port 8000.'
             });
+        }
+    }
+
+    private async proactiveIndexCurrentWorkspace(projectAlias: string, projectPath: string) {
+        try {
+            // Register workspace first
+            await fetch(`${this.getApiUrl()}/api/v1/workspaces`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: projectAlias,
+                    alias: projectAlias,
+                    root_path: projectPath
+                })
+            });
+
+            vscode.window.showInformationMessage(`ECIP Lite: Automatically indexing workspace "${projectAlias}" in the background...`);
+
+            fetch(`${this.getApiUrl()}/api/v1/index`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_path: projectPath,
+                    project_alias: projectAlias
+                })
+            }).then(async (indexResponse) => {
+                if (indexResponse.ok) {
+                    vscode.window.showInformationMessage(`ECIP Lite: Finished indexing "${projectAlias}".`);
+                    await this.fetchWorkspaces();
+                } else {
+                    this.logDebug(`Proactive indexing returned non-OK status: ${indexResponse.status}`);
+                    this._isProactivelyIndexing.delete(projectAlias);
+                }
+            }).catch(e => {
+                this.logDebug(`Proactive indexing fetch failed: ${e}`);
+                this._isProactivelyIndexing.delete(projectAlias);
+            });
+        } catch (e) {
+            this.logDebug(`Proactive registration failed: ${e}`);
+            this._isProactivelyIndexing.delete(projectAlias);
         }
     }
 
