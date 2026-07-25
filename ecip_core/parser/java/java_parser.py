@@ -274,6 +274,18 @@ class JavaParser:
                 params_str = ", ".join(params_list)
                 signature = f"{mods_str} {ret_type} {node.name}({params_str})".strip()
                 
+                invocations_list = []
+                if node.body:
+                    try:
+                        for _, inv_node in node.filter(javalang.tree.MethodInvocation):
+                            invocations_list.append({
+                                "method_name": inv_node.member,
+                                "qualifier": inv_node.qualifier,
+                                "line": inv_node.position.line if inv_node.position else None
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to extract invocations for method {node.name}: {e}")
+
                 methods.append(
                     MethodInfo(
                         name=node.name,
@@ -284,7 +296,8 @@ class JavaParser:
                         parameters=params_list,
                         throws=throws_list,
                         start_line=start_line,
-                        end_line=end_line
+                        end_line=end_line,
+                        invocations=invocations_list
                     )
                 )
 
