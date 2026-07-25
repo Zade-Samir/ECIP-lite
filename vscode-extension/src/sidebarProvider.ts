@@ -618,17 +618,75 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const bodyLines = snippetBody.split('\n');
         const cleanedBodyLines: string[] = [];
 
+        const classNameMatch = originalText.match(/(?:class|interface)\s+([A-Za-z0-9_]+)/);
+        const className = classNameMatch ? classNameMatch[1] : '';
+
         for (let i = 0; i < bodyLines.length; i++) {
             const line = bodyLines[i];
             const trimmed = line.trim();
 
-            if (trimmed.startsWith('package ') || trimmed.startsWith('import ') || trimmed.startsWith('@RestController') || trimmed.startsWith('@RequestMapping') || trimmed.startsWith('public class ') || trimmed.startsWith('class ')) {
+            if (
+                trimmed.startsWith('package ') || 
+                trimmed.startsWith('import ') || 
+                trimmed.startsWith('@RestController') || 
+                trimmed.startsWith('@Controller') || 
+                trimmed.startsWith('@Service') || 
+                trimmed.startsWith('@Repository') || 
+                trimmed.startsWith('@RequestMapping') || 
+                trimmed.startsWith('public class ') || 
+                trimmed.startsWith('class ')
+            ) {
+                continue;
+            }
+
+            if (
+                trimmed.startsWith('//') && (
+                    trimmed.toLowerCase().includes('existing') || 
+                    trimmed.toLowerCase().includes('other') || 
+                    trimmed.includes('...') || 
+                    trimmed.toLowerCase().includes('rest of') ||
+                    trimmed.toLowerCase().includes('methods')
+                )
+            ) {
+                continue;
+            }
+            if (trimmed === '//' || trimmed === '// ...' || trimmed === '/* ... */') {
                 continue;
             }
 
             if (trimmed.startsWith('private ') || trimmed.startsWith('protected ') || trimmed.startsWith('public ')) {
                 const isField = trimmed.endsWith(';') && !trimmed.includes('(');
                 if (isField && originalText.includes(trimmed)) {
+                    continue;
+                }
+            }
+
+            if (className && trimmed.startsWith(`public ${className}(`)) {
+                let braceCount = 0;
+                let j = i;
+                for (; j < bodyLines.length; j++) {
+                    if (bodyLines[j].includes('{')) braceCount++;
+                    if (bodyLines[j].includes('}')) braceCount--;
+                    if (braceCount === 0 && j > i) break;
+                }
+                i = j;
+                continue;
+            }
+
+            if (trimmed === '@Autowired') {
+                let nextLine = '';
+                for (let k = i + 1; k < bodyLines.length; k++) {
+                    if (bodyLines[k].trim()) {
+                        nextLine = bodyLines[k].trim();
+                        break;
+                    }
+                }
+                if (
+                    !nextLine || 
+                    (className && nextLine.startsWith(`public ${className}(`)) || 
+                    (className && originalText.includes(nextLine)) ||
+                    nextLine.startsWith('//')
+                ) {
                     continue;
                 }
             }
