@@ -10,6 +10,7 @@ from ecip_core.embedding.embedding_service import EmbeddingService
 from ecip_core.vectorstore.faiss_store import FAISSStore
 from ecip_core.embedding.models.embedding import Embedding
 from ecip_core.dependency.graph_builder import DependencyGraphBuilder
+from ecip_core.graph.synchronization.synchronizer import GraphSynchronizer
 
 from ecip_core.common.logger import get_logger
 
@@ -29,6 +30,7 @@ class IndexBuilder:
         self.chunker = JavaChunker()
         self.embedding_service = EmbeddingService()
         self.graph_builder = DependencyGraphBuilder()
+        self.synchronizer = GraphSynchronizer()
         # FAISSStore is initialized without paths here; paths are set per build()
         self.faiss_store: FAISSStore | None = None
 
@@ -88,6 +90,7 @@ class IndexBuilder:
         for p in deleted_file_paths:
             self.repository.delete_by_file_path(p)
             self.repository.delete_class_edges(project_id, Path(p).stem)
+            self.synchronizer.delete_class(project_id, Path(p).stem)
             self.faiss_store.remove_file(p)
             stats["removed"] += 1
 
@@ -123,6 +126,9 @@ class IndexBuilder:
 
                 # Build class dependency edges
                 self.graph_builder.build_class_edges(project_id, parsed, project_classes)
+
+                # Sync graph database (Project, Package, Class, Method nodes)
+                self.synchronizer.sync_class(project_id, parsed)
 
                 # Re-chunk changed file
                 try:
