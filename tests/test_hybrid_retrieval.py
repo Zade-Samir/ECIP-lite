@@ -11,6 +11,8 @@ from ecip_core.retrieval.semantic_search import SemanticSearch
 class TestHybridRetrieval(unittest.TestCase):
 
     def setUp(self):
+        import os
+        os.environ["HYBRID_BM25_ENABLED"] = "false"
         self.mock_metadata_service = MagicMock(spec=MetadataSearchService)
         self.mock_semantic_search = MagicMock(spec=SemanticSearch)
 

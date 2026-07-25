@@ -26,7 +26,9 @@ class TestJavaChunker(unittest.TestCase):
         # Configure logging capture
         self.log_handler = LogCaptureHandler()
         self.log_handler.setLevel(logging.DEBUG)
-        logging.getLogger("ecip_core.chunking.java_chunker").addHandler(self.log_handler)
+        logger = logging.getLogger("ecip_core.chunking.java_chunker")
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(self.log_handler)
         self.log_capture = self.log_handler.records
 
     def tearDown(self):

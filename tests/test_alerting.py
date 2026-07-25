@@ -7,6 +7,7 @@ class TestAlerting(unittest.TestCase):
 
     def setUp(self):
         self.collector = MetricsCollector()
+        self.collector.clear()
         self.alert_manager = AlertManager(self.collector)
 
     def test_alert_rule_evaluation_and_trigger(self):

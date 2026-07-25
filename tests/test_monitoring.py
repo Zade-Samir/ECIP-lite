@@ -7,6 +7,7 @@ class TestMonitoring(unittest.TestCase):
 
     def setUp(self):
         self.collector = MetricsCollector()
+        self.collector.clear()
         self.monitor = HealthMonitor(self.collector)
 
     def test_metric_collection_and_average(self):
