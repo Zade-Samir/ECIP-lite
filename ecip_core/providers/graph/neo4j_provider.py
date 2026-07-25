@@ -69,17 +69,19 @@ class Neo4jGraphProvider(GraphProvider):
         properties: Optional[Dict[str, Any]] = None
     ) -> None:
         """Creates a relationship between two nodes."""
-        if rel_type not in {"DEPENDS_ON", "IMPLEMENTS", "EXTENDS", "CALLS", "REFERENCES"}:
+        if rel_type not in {"DEPENDS_ON", "IMPLEMENTS", "EXTENDS", "CALLS", "REFERENCES", "INVOKES", "OVERRIDES", "IMPLEMENTS_METHOD"}:
             raise ValueError(f"Unsupported relationship type: {rel_type}")
 
         self._ensure_connected()
         props = properties or {}
         project_id = props.get("project_id", "default")
+        source_label = props.get("source_label", "Class")
+        target_label = props.get("target_label", "Class")
 
         with self.driver.session() as session:
             query = f"""
-            MERGE (a:Class {{id: $source_id, project_id: $project_id}})
-            MERGE (b:Class {{id: $target_id, project_id: $project_id}})
+            MERGE (a:{source_label} {{id: $source_id, project_id: $project_id}})
+            MERGE (b:{target_label} {{id: $target_id, project_id: $project_id}})
             MERGE (a)-[r:{rel_type}]->(b)
             SET r += $properties
             """

@@ -37,6 +37,24 @@ class SqliteGraphProvider(GraphProvider):
         # This is a no-op as SQLite's relational schema handles node storage in separate tables.
         pass
 
+    def _ensure_method_calls_table(self, conn):
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS method_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT,
+                source_method TEXT,
+                target_method TEXT,
+                relationship_type TEXT,
+                discovered_at TEXT,
+                UNIQUE(project_id, source_method, target_method, relationship_type)
+            );
+            """)
+            conn.commit()
+        except Exception as e:
+            logger.warning(f"Could not initialize method_calls table: {e}")
+
     def create_relationship(
         self,
         source_id: str,
@@ -44,9 +62,54 @@ class SqliteGraphProvider(GraphProvider):
         rel_type: str,
         properties: Optional[Dict[str, Any]] = None
     ) -> None:
-        # Map project_id from properties
-        project_id = (properties or {}).get("project_id", "default")
-        self.save_edge(project_id, source_id, target_id, rel_type)
+        props = properties or {}
+        project_id = props.get("project_id", "default")
+        source_label = props.get("source_label", "Class")
+        target_label = props.get("target_label", "Class")
+
+        conn = self._get_conn()
+        self._ensure_method_calls_table(conn)
+
+        if source_label == "Method" or target_label == "Method":
+            self.save_method_call(project_id, source_id, target_id, rel_type)
+        else:
+            self.save_edge(project_id, source_id, target_id, rel_type)
+
+    def save_method_call(
+        self,
+        project_id: str,
+        source_method: str,
+        target_method: str,
+        relationship_type: str
+    ) -> bool:
+        try:
+            conn = self._get_conn()
+            cursor = conn.cursor()
+            
+            cursor.execute(
+                """
+                SELECT id FROM method_calls
+                WHERE project_id = ? AND source_method = ? AND target_method = ? AND relationship_type = ?
+                """,
+                (project_id, source_method, target_method, relationship_type)
+            )
+            if cursor.fetchone():
+                return False
+
+            discovered_at = datetime.datetime.utcnow().isoformat() + "Z"
+            cursor.execute(
+                """
+                INSERT INTO method_calls (
+                    project_id, source_method, target_method, relationship_type, discovered_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (project_id, source_method, target_method, relationship_type, discovered_at)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"SQLite method call graph error: {e}")
+            raise e
 
     def batch_insert_nodes(self, nodes: List[Dict[str, Any]]) -> None:
         pass
@@ -221,10 +284,16 @@ class SqliteGraphProvider(GraphProvider):
     def delete_class_edges(self, project_id: str, class_name: str) -> None:
         try:
             conn = self._get_conn()
+            self._ensure_method_calls_table(conn)
             cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM dependency_edges WHERE project_id = ? AND source_class = ?",
                 (project_id, class_name)
+            )
+            # Clean up method calls associated with this class
+            cursor.execute(
+                "DELETE FROM method_calls WHERE project_id = ? AND (source_method LIKE ? OR target_method LIKE ?)",
+                (project_id, f"{class_name}.%", f"{class_name}.%")
             )
             conn.commit()
         except Exception as e:
@@ -234,11 +303,91 @@ class SqliteGraphProvider(GraphProvider):
     def delete_project(self, project_id: str) -> None:
         try:
             conn = self._get_conn()
+            self._ensure_method_calls_table(conn)
             cursor = conn.cursor()
             cursor.execute("DELETE FROM dependency_edges WHERE project_id = ?", (project_id,))
+            cursor.execute("DELETE FROM method_calls WHERE project_id = ?", (project_id,))
             conn.commit()
         except Exception as e:
             logger.error(f"SQLite graph error: {e}")
+            raise e
+
+    def get_method_calls(self, project_id: str) -> List[Dict[str, Any]]:
+        try:
+            conn = self._get_conn()
+            self._ensure_method_calls_table(conn)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT source_method, target_method, relationship_type, discovered_at
+                FROM method_calls WHERE project_id = ?
+                """,
+                (project_id,)
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "source_method": r[0],
+                    "target_method": r[1],
+                    "relationship_type": r[2],
+                    "discovered_at": r[3]
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error(f"SQLite graph error (get_method_calls): {e}")
+            raise e
+
+    def get_outgoing_method_calls(self, project_id: str, method_name: str) -> List[Dict[str, Any]]:
+        try:
+            conn = self._get_conn()
+            self._ensure_method_calls_table(conn)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT source_method, target_method, relationship_type, discovered_at
+                FROM method_calls WHERE project_id = ? AND source_method = ?
+                """,
+                (project_id, method_name)
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "source_method": r[0],
+                    "target_method": r[1],
+                    "relationship_type": r[2],
+                    "discovered_at": r[3]
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error(f"SQLite graph error (get_outgoing_method_calls): {e}")
+            raise e
+
+    def get_incoming_method_calls(self, project_id: str, method_name: str) -> List[Dict[str, Any]]:
+        try:
+            conn = self._get_conn()
+            self._ensure_method_calls_table(conn)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT source_method, target_method, relationship_type, discovered_at
+                FROM method_calls WHERE project_id = ? AND target_method = ?
+                """,
+                (project_id, method_name)
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "source_method": r[0],
+                    "target_method": r[1],
+                    "relationship_type": r[2],
+                    "discovered_at": r[3]
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error(f"SQLite graph error (get_incoming_method_calls): {e}")
             raise e
 
     def create_cross_repo_relationship(

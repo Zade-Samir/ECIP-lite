@@ -15,3 +15,4 @@ class MethodInfo(BaseModel):
     throws: list[str] = Field(default_factory=list)
     start_line: int
     end_line: int
+    invocations: list[dict] = Field(default_factory=list)

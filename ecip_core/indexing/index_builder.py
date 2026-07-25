@@ -173,6 +173,22 @@ class IndexBuilder:
         except Exception as e:
             logger.error(f"Failed to build BM25 index: {e}")
 
+        # Build Call Graph
+        try:
+            from ecip_core.callgraph.builder import CallGraphBuilder
+            call_graph_builder = CallGraphBuilder()
+            parsed_all = []
+            for file in java_files:
+                try:
+                    parsed_all.append(self.parser.parse(str(file.resolve())))
+                except Exception as e:
+                    logger.warning(f"Failed to parse {file} during call graph building: {e}")
+            call_graph_builder.build(project_id, parsed_all)
+            logger.info("Call graph generated")
+        except Exception as e:
+            logger.error(f"Failed to generate call graph: {e}")
+
+
         duration = time.perf_counter() - start_time
         logger.info(f"Total duration: {duration:.4f}s")
 
