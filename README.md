@@ -37,9 +37,13 @@ ECIP Lite answers these questions using local AI — like having a senior develo
 | 💾 **Persistent FAISS Index** | Vector index survives restarts — no re-indexing needed |
 | 🔄 **Batch Embedding** | Processes multiple chunks in one API call — faster indexing |
 | 🔌 **Provider Abstraction** | Swap embedding/LLM backends without changing the pipeline |
-| 🧠 **Hybrid Retrieval** | Exact metadata match + semantic vector search, merged and ranked |
+| 🧠 **BM25 + Vector Hybrid Retrieval** | Combines lexical BM25 search with dense vector semantic search, merged and ranked using weighted fusion |
 | 🎯 **Intent Analyzer** | Understands what you're asking and routes retrieval intelligently |
 | 🕸️ **Dependency Graph** | Tracks class-to-class dependencies and usage relationships |
+| 🕸️ **Cross-Repository Indexing** | Ingests multiple Git repositories into a unified enterprise graph while maintaining isolation and establishing cross-repository references |
+| 🔄 **Graph Synchronization Engine** | Incremental sync of Neo4j Graph DB with automatic orphan cleanup, exponential backoff retries, and transaction safety |
+| ⚡ **Cross-Encoder Re-ranking** | Second-stage candidate scoring using Cross-Encoders (with smart token-based similarity fallback) for maximum precision |
+| 📞 **Advanced Call Graph Analysis** | Static method-level invocation mapping (`CALLS`, `INVOKES`, `OVERRIDES`, `IMPLEMENTS_METHOD`) with incremental updates |
 | 💥 **Impact Analysis** | Shows which classes break if you change a given class |
 | 📎 **Source Citations** | Every LLM answer is linked to exact `file:line` source references |
 | 🔬 **Diagnostics** | 9-check system health validation — detects drift before it hurts |
@@ -389,13 +393,14 @@ python -m unittest tests/e2e/test_e2e_pipeline.py -v
 - [x] Structured Logging
 - [x] End-to-End Test Suite (255 tests)
 
-### v1.1 (Planned)
-- [ ] Python language support
-- [ ] Web UI (browser-based query interface)
-- [ ] OpenAI / LM Studio embedding provider
-- [ ] Dependency graph visualization
+### v1.1.0 Enterprise Upgrades ✅ (Released)
+- [x] **Graph Synchronization Engine**: Incremental updates and orphan cleanup in Neo4j
+- [x] **Cross-Repository Indexing**: Multiple repo tracking and isolation with cross-repo edges
+- [x] **BM25 + Vector Hybrid Search**: Exact keyword retrieval mixed with dense vector semantic search
+- [x] **Cross-Encoder Re-ranking**: Second-stage candidate scoring for maximum precision
+- [x] **Advanced Call Graph Analysis**: Static method-level invocation mapping (`CALLS`, `OVERRIDES`, `IMPLEMENTS_METHOD`)
 
-### v1.2 (Future)
+### v1.2 (Planned)
 - [ ] Multi-user support
 - [ ] Docker deployment
 - [ ] Go / JavaScript language support
