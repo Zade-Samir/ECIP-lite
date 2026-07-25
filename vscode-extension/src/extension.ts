@@ -73,6 +73,13 @@ export function activate(context: vscode.ExtensionContext) {
             sidebarProvider.askQuestion('Show recent source code citations for my queries');
         })
     );
+
+    // 6. Auto re-index on file save (debounced, only supported file types)
+    context.subscriptions.push(
+        vscode.workspace.onDidSaveTextDocument((document) => {
+            sidebarProvider.indexSingleFile(document.uri.fsPath);
+        })
+    );
 }
 
 export function deactivate() {}
