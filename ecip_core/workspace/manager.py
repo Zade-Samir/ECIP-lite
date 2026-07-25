@@ -310,6 +310,158 @@ class WorkspaceManager:
             "status": project["status"]
         }
 
+    def _ensure_repositories_table(self):
+        from ecip_core.storage.sqlite.database import Database
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS repositories (
+            repository_id TEXT PRIMARY KEY,
+            repository_name TEXT,
+            root_path TEXT,
+            branch TEXT,
+            commit_hash TEXT,
+            indexed_at TEXT,
+            language TEXT,
+            project_type TEXT
+        );
+        """)
+        conn.commit()
+
+    def register_repository(
+        self,
+        repository_id: str,
+        name: str,
+        root_path: str,
+        branch: str = "main",
+        language: str = "Java",
+        project_type: str = "Maven"
+    ) -> Dict[str, Any]:
+        self._ensure_repositories_table()
+        if not repository_id or not repository_id.strip():
+            raise ValueError("repository_id cannot be empty")
+        
+        repository_id = repository_id.strip()
+        name = name.strip()
+        root_path = root_path.strip()
+
+        # Check duplicate repository
+        repos = self.list_repositories()
+        for r in repos:
+            if r["repository_id"] == repository_id:
+                logger.warning(f"Duplicate repository: {repository_id}")
+                raise ValueError(f"Repository '{repository_id}' is already registered.")
+
+        # Save to registry DB
+        from ecip_core.storage.sqlite.database import Database
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO repositories (
+                repository_id, repository_name, root_path, branch, commit_hash, indexed_at, language, project_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (repository_id, name, root_path, branch, "", "", language, project_type)
+        )
+        conn.commit()
+
+        # Also register as workspace to enable isolation automatically
+        try:
+            self.register_workspace(repository_id, name, root_path)
+        except ValueError:
+            pass
+
+        logger.info("Repository registered")
+        return {
+            "repository_id": repository_id,
+            "repository_name": name,
+            "root_path": root_path,
+            "branch": branch,
+            "commit_hash": "",
+            "indexed_at": "",
+            "language": language,
+            "project_type": project_type
+        }
+
+    def get_repository(self, repository_id: str) -> Optional[Dict[str, Any]]:
+        self._ensure_repositories_table()
+        from ecip_core.storage.sqlite.database import Database
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT repository_id, repository_name, root_path, branch, commit_hash, indexed_at, language, project_type
+            FROM repositories WHERE repository_id = ?
+            """,
+            (repository_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return {
+                "repository_id": row[0],
+                "repository_name": row[1],
+                "root_path": row[2],
+                "branch": row[3],
+                "commit_hash": row[4],
+                "indexed_at": row[5],
+                "language": row[6],
+                "project_type": row[7]
+            }
+        return None
+
+    def list_repositories(self) -> List[Dict[str, Any]]:
+        self._ensure_repositories_table()
+        from ecip_core.storage.sqlite.database import Database
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT repository_id, repository_name, root_path, branch, commit_hash, indexed_at, language, project_type
+            FROM repositories
+            """
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "repository_id": r[0],
+                "repository_name": r[1],
+                "root_path": r[2],
+                "branch": r[3],
+                "commit_hash": r[4],
+                "indexed_at": r[5],
+                "language": r[6],
+                "project_type": r[7]
+            }
+            for r in rows
+        ]
+
+    def delete_repository(self, repository_id: str) -> None:
+        self._ensure_repositories_table()
+        from ecip_core.storage.sqlite.database import Database
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM repositories WHERE repository_id = ?", (repository_id,))
+        conn.commit()
+        self.delete_workspace(repository_id)
+
+    def update_repository_commit(self, repository_id: str, commit_hash: str) -> None:
+        self._ensure_repositories_table()
+        from ecip_core.storage.sqlite.database import Database
+        import datetime
+        conn = Database.get_registry_connection()
+        cursor = conn.cursor()
+        indexed_at = datetime.datetime.utcnow().isoformat() + "Z"
+        cursor.execute(
+            """
+            UPDATE repositories
+            SET commit_hash = ?, indexed_at = ?
+            WHERE repository_id = ?
+            """,
+            (commit_hash, indexed_at, repository_id)
+        )
+        conn.commit()
+
 
 workspace_manager = WorkspaceManager()
 
