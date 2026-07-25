@@ -1,436 +1,204 @@
-# ECIP Lite 🚀
+# ECIP Enterprise 🚀
 
-**ECIP Lite** (Enterprise Code Intelligence Platform — Lite) is an **offline, privacy-first AI code intelligence tool** built for developers who work with large Java/Spring Boot codebases.
+**ECIP (Enterprise Code Intelligence Platform)** is an **offline, privacy-first AI Code Intelligence & Autonomous Software Engineering Platform** built for high-security enterprise teams working with complex Java/Spring Boot codebases, microservices, and distributed architectures.
 
-It indexes your project locally, understands the structure of your code, and lets you ask natural language questions — without sending a single line of code to the cloud.
+It indexes your projects locally, constructs a multi-hop Knowledge Graph, understands cross-repository dependencies, and deploys autonomous AI agents to pair-program, debug, review code, generate tests, manage architecture, and validate release readiness — **without a single line of code ever leaving your machine**.
 
-> 🔒 **100% local. No cloud. No API keys. No data leaves your machine.**
+> 🔒 **100% Offline. 0% Cloud. Zero API Key Leaks. Complete Privacy Guarantee.**
 
 [![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/Zade-Samir/ECIP-lite/releases/tag/v1.0.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-255%20passing-brightgreen)](scripts/run_release_validation.py)
+[![Tests](https://img.shields.io/badge/tests-532%20passing-brightgreen)](scripts/release/build_release.py)
+[![Prompts Completed](https://img.shields.io/badge/playbook-100%2F100%20Prompts-success)](#-100-prompt-enterprise-milestone)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 
 ---
 
-## 🎯 What Problem Does It Solve?
+## 🎯 What Problem Does ECIP Solve?
 
-When you join a new project or work on a large codebase, it's hard to:
-- Understand what a service does without reading 1000 lines
-- Find which classes depend on each other
-- Know which method handles a specific API endpoint
-- Trace what breaks if you change a shared class
+Enterprise software development faces three critical challenges:
+1. 🔒 **Data Privacy Constraints**: Financial institutions, healthcare, and defense organizations cannot upload proprietary code to cloud AI providers (ChatGPT, GitHub Copilot).
+2. 👁️ **Context Tunnel Vision**: Standard LLM tools lack deep understanding of multi-service dependencies, SQL schemas, configuration profiles, and layer architecture ($A \to B \to C$).
+3. ⏳ **Developer Time Drain**: Engineers spend 60%+ of their time tracing class relationships, manually testing, debugging stack traces, refactoring legacy code, and writing documentation.
 
-ECIP Lite answers these questions using local AI — like having a senior developer who has read the entire codebase explain it to you.
+**ECIP Enterprise** solves all three by providing a local, RAG + Knowledge Graph-powered autonomous engineering engine embedded directly in your workflow.
 
 ---
 
-## ✨ Features
+## ✨ Enterprise Feature Highlights
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **AST-Based Java Parser** | Understands classes, methods, annotations, generics, nested classes |
-| 🧩 **Method-Level Chunking** | Indexes each method individually for precise search |
-| 🗃️ **SQLite Metadata Store** | Stores rich structural metadata per file |
-| 🔢 **Local Embeddings** | Uses `nomic-embed-text` via Ollama — no OpenAI needed |
-| ⚡ **Incremental Indexing** | Only re-indexes files that actually changed |
-| 💾 **Persistent FAISS Index** | Vector index survives restarts — no re-indexing needed |
-| 🔄 **Batch Embedding** | Processes multiple chunks in one API call — faster indexing |
-| 🔌 **Provider Abstraction** | Swap embedding/LLM backends without changing the pipeline |
-| 🧠 **BM25 + Vector Hybrid Retrieval** | Combines lexical BM25 search with dense vector semantic search, merged and ranked using weighted fusion |
-| 🎯 **Intent Analyzer** | Understands what you're asking and routes retrieval intelligently |
-| 🕸️ **Dependency Graph** | Tracks class-to-class dependencies and usage relationships |
-| 🕸️ **Cross-Repository Indexing** | Ingests multiple Git repositories into a unified enterprise graph while maintaining isolation and establishing cross-repository references |
-| 🔄 **Graph Synchronization Engine** | Incremental sync of Neo4j Graph DB with automatic orphan cleanup, exponential backoff retries, and transaction safety |
-| ⚡ **Cross-Encoder Re-ranking** | Second-stage candidate scoring using Cross-Encoders (with smart token-based similarity fallback) for maximum precision |
-| 📞 **Advanced Call Graph Analysis** | Static method-level invocation mapping (`CALLS`, `INVOKES`, `OVERRIDES`, `IMPLEMENTS_METHOD`) with incremental updates |
-| 💥 **Impact Analysis** | Shows which classes break if you change a given class |
-| 📎 **Source Citations** | Every LLM answer is linked to exact `file:line` source references |
-| 🔬 **Diagnostics** | 9-check system health validation — detects drift before it hurts |
-| 🗂️ **Multi-Workspace** | Index and query multiple projects simultaneously, fully isolated |
-| 🚀 **REST API** | FastAPI HTTP interface for all operations |
-| 📊 **Performance Metrics** | Timing instrumentation across every pipeline stage |
-| 🗄️ **Caching** | In-memory + disk cache with TTL and hit/miss stats |
-| 📝 **Structured Logging** | Request-scoped correlation IDs, file rotation, JSON-compatible |
+### 🤖 Autonomous AI Copilots & Assistants (Prompts 091–100)
+- 👥 **AI Pair Programmer**: Workspace-aware chat assistant with verified `file:line` source citations.
+- 🐞 **AI Debugging Assistant**: Correlates stack traces and log lines to pinpoint root causes and recommend fixes.
+- 🔍 **AI Code Review Assistant**: Automated PR reviewer with inline comments for quality, security, and performance.
+- 🧪 **AI Test Generation Assistant**: Automatically builds JUnit/Pytest test suites, mocks, and fixtures with coverage impact estimation.
+- 📄 **AI Documentation Assistant**: Generates and updates Markdown/HTML API references, architecture guides, and stale doc checks.
+- 🏗️ **AI Architecture Copilot**: Recommends design patterns, evaluates trade-offs, and drafts Architectural Decision Records (ADRs).
+- 🚀 **AI DevOps Copilot**: Analyzes Dockerfiles, Kubernetes manifests, and Helm charts for resource limits and security misconfigurations.
+- 🎛️ **AI Platform Operations Center**: Central console for monitoring service topology, incidents, and 30-day storage/capacity forecasting.
+- 🤖 **Autonomous Engineering Platform**: Multi-agent orchestrator executing end-to-end goals (Planner $\to$ Executor $\to$ Verifier $\to$ Self-Healing).
+
+### 🔍 Intelligence, Security & Quality (Prompts 076–090)
+- 🛡️ **Security Intelligence & Secret Scanner**: AST-based detector for hardcoded tokens, RSA keys, SQL injections, and weak crypto.
+- 🚦 **Release Readiness Intelligence**: Evaluates blocking/advisory gates to calculate 0–100 release scores and GO / NO-GO decisions.
+- 📈 **Continuous Code Quality Intelligence**: Tracks maintainability index, cyclomatic complexity, duplication, and technical debt trends.
+- 🔄 **Refactoring Automation Engine**: Reversible AST transformations (package rename, API migration) with dry-run unified diffs and rollback.
+- 🛠️ **Code Modernization Assistant**: Upgrade planner for Java version transitions and Spring Boot 2.x $\to$ 3.x migrations.
+- ⚡ **CI/CD Intelligence**: Adapters for GitHub Actions, GitLab CI, and Jenkins with automated PR build annotations.
+
+### 🧠 Core Retrieval & Graph Engines (Prompts 001–075)
+- 🕸️ **Knowledge Graph Engine**: Multi-hop graph traversal (SQLite / Neo4j) mapping `CALLS`, `DEPENDS_ON`, `IMPLEMENTS`, and `EXTENDS`.
+- 🔎 **Hybrid Search (BM25 + FAISS Vector)**: Lexical keyword search combined with dense vector semantic search.
+- 🎯 **Cross-Encoder Re-ranking**: Second-stage scoring for maximum precision on complex queries.
+- 🌐 **Interactive Knowledge Dashboard**: Visual web console served live at `http://localhost:8000/dashboard/ui`.
 
 ---
 
 ## 🏗️ Architecture
 
+```text
+                               ┌───────────────────────────────────────────────┐
+                               │             Enterprise Clients                │
+                               │   (VS Code, IntelliJ, CLI, REST API)          │
+                               └──────────────────────┬────────────────────────┘
+                                                      │
+                                                      ▼
+                               ┌───────────────────────────────────────────────┐
+                               │              Enterprise API Gateway           │
+                               │    (RBAC, Multi-Tenancy, Audit Logging)       │
+                               └──────────────────────┬────────────────────────┘
+                                                      │
+              ┌───────────────────────────────────────┼───────────────────────────────────────┐
+              ▼                                       ▼                                       ▼
+  ┌───────────────────────┐               ┌───────────────────────┐               ┌───────────────────────┐
+  │   AI Copilots         │               │ Autonomous Platform   │               │ Knowledge & Security  │
+  │ • Pair Programmer     │               │ • Goal Orchestrator   │               │ • Security Scanner    │
+  │ • Code Review         │               │ • Planner & Executor  │               │ • Quality Intelligence│
+  │ • Debugging           │               │ • Verifier & Healing  │               │ • Release Readiness   │
+  │ • Test & Doc Gen      │               │ • Approval Manager    │               │ • CI/CD Intelligence  │
+  └───────────┬───────────┘               └───────────┬───────────┘               └───────────┬───────────┘
+              │                                       │                                       │
+              └───────────────────────────────────────┼───────────────────────────────────────┘
+                                                      │
+                                                      ▼
+                               ┌───────────────────────────────────────────────┐
+                               │           Retrieval & Graph Engine            │
+                               │  (BM25 + FAISS Vector + Neo4j/SQLite Graph)   │
+                               └──────────────────────┬────────────────────────┘
+                                                      │
+                                                      ▼
+                               ┌───────────────────────────────────────────────┐
+                               │            Local Model Gateway                │
+                               │        (Ollama / Local LLM Inference)         │
+                               └───────────────────────────────────────────────┘
 ```
-Java Project
-      │
-      ▼
-Project Scanner          ← Finds all .java files (recursive)
-      │
-      ▼
-AST Parser (javalang)    ← Classes, methods, annotations, constructors
-      │
-      ├──────────────────────────────────────────┐
-      ▼                                          ▼
-SQLite Metadata Store                    Dependency Graph
-(classes, methods, edges)                (class relationships)
-      │
-      ▼
-Smart Java Chunker        ← Method-level + class overview chunks
-      │
-      ▼
-Embedding Service         ← nomic-embed-text via Ollama (batch)
-      │
-      ▼
-FAISS Vector Store        ← Persistent local vector index
-      │
-      ▼
-Hybrid Retrieval          ← Metadata match + semantic search, ranked
-      │
-      ├──────────────────┐
-      ▼                  ▼
-Context Builder     Intent Analyzer     ← Understand query intent
-      │
-      ▼
-Prompt Builder           ← Structured prompt with code context
-      │
-      ▼
-Inference Service         ← Ollama LLM (streaming/sync)
-      │
-      ▼
-Citation Engine           ← Validates answer → file:line links
-      │
-      ▼
-Response Formatter        ← CLI output or API JSON response
-```
-
-### 🔄 How it Works: Step-by-Step Data Flow
-
-ECIP Lite operates via two primary runtime pipelines: **Indexing** and **Query Processing**.
-
-#### 1. The Indexing Pipeline (Code Base to Local Database)
-When you trigger a project index (via CLI or `POST /api/v1/index`):
-1. **Scanning**: Recursively discovers all `.java` files in the project.
-2. **Incremental Check**: Compares the SHA-256 hash of each file with the previously stored hash in SQLite. If unchanged, the file is skipped.
-3. **AST Parsing**: Passes changed/new files through the Java AST parser (`javalang`) to extract classes, methods, parameters, annotations, and dependency imports.
-4. **Dependency Mapping**: Populates a directed graph representing class dependency edges (`uses`, `depends_on`).
-5. **Smart Chunking**: Splits files into method-level chunks (with signature contexts) plus a class-level overview chunk.
-6. **Local Embedding**: Sends chunks in batches to Ollama's local `nomic-embed-text` endpoint to get 768-dimension vectors.
-7. **Storage**: Persists structural metadata to SQLite and indexes vector representations to a disk-backed FAISS vector store.
-
-#### 2. The Query Pipeline (Question to Cited Answer)
-When you ask a question (like *"What does UserService do?"*):
-1. **Entity Extraction**: Finds potential class names, method names, or endpoints in your query (e.g. `UserService`).
-2. **Intent Analysis**: Determines if you are asking for code explanation, dependency traversal, endpoint lookup, or impact analysis.
-3. **Hybrid Retrieval**:
-   - Performs an exact metadata search in SQLite for parsed classes/methods matching the query.
-   - Performs a semantic similarity search in the FAISS vector index using the query's embedding vector.
-   - Merges and ranks the results, prioritizing exact metadata matches.
-4. **Context Building**: Fetches the actual code snippets/chunks of the top-ranked files and organizes them.
-5. **Prompt Assembly**: Injects the code context, rules, and question into a structured system prompt.
-6. **Local LLM Inference**: Sends the prompt to Ollama's local LLM (`qwen2.5-coder:3b`).
-7. **Citation Verification**: Matches the LLM's response content against the injected file lines to generate verified `file:line` source tags.
-8. **Formatting**: Renders a rich response showing the answer, source citations, execution metrics, and cache status.
 
 ---
 
-## 🛠️ Prerequisites
+## 🚀 Getting Started
+
+### 1. Prerequisites
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
 | Python | 3.10+ | Required |
 | [Ollama](https://ollama.com/download) | Latest | For local LLM + embeddings |
 
-### Pull required Ollama models
+### 2. Pull Required Ollama Models
 
 ```bash
 # Embedding model (required for indexing)
 ollama pull nomic-embed-text
 
-# LLM model (required for Q&A)
+# LLM model (required for Q&A and AI Copilots)
 ollama pull qwen2.5-coder:3b
 ```
 
-> You can use any Ollama-compatible model. Update `MODEL_NAME` in `.env` accordingly.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repository
+### 3. Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/Zade-Samir/ECIP-lite.git
 cd ecip-lite
-```
 
-### 2. Create a virtual environment
-
-```bash
+# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate        # macOS / Linux
 # .venv\Scripts\activate         # Windows
-```
 
-### 3. Install dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Configure environment
-
-```bash
+# Configure environment
 cp .env.example .env
 ```
 
-Edit `.env` with your Ollama URL and model names. Key settings:
-
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-MODEL_NAME=qwen2.5-coder:3b
-EMBEDDING_MODEL=nomic-embed-text
-EMBEDDING_DIMENSION=768
-```
-
-### 5. Add your Java project
-
-Place your Java project under the `projects/` directory:
-
-```bash
-cp -r /path/to/your/spring-boot-project projects/myproject
-```
-
-### 6. Index your project (CLI)
-
-```bash
-# Register and index your project
-python -m ecip_core.main
-```
-
-On first run, ECIP Lite will automatically scan and index the configured project.
-
-### 7. Query your codebase
-
-```bash
-Ask ECIP > What does UserService do?
-Ask ECIP > Which classes use UserRepository?
-Ask ECIP > What happens if I change UserRepository?
-Ask ECIP > Show me the REST endpoints in UserController
-```
-
----
-
-## 🌐 REST API
-
-Start the API server:
+### 4. Run the API Server & Interactive Dashboard
 
 ```bash
 python run_api.py
 ```
 
-The API is now running at `http://localhost:8000`.
+The server starts at `http://localhost:8000`.
 
-### Key Endpoints
+- 📊 **Interactive Knowledge Dashboard**: Open `http://localhost:8000/dashboard/ui` in your browser.
+- 📖 **Interactive Swagger API Docs**: Open `http://localhost:8000/docs` in your browser.
+
+---
+
+## 🌐 Key REST API Endpoints
 
 ```bash
-# Index a project
+# Index a local codebase
 POST /api/v1/index
 {
-  "project_path": "projects/myproject"
+  "project_path": "projects/my-spring-boot-app"
 }
 
-# Query the codebase
+# Ask AI Pair Programmer
 POST /api/v1/query
 {
-  "question": "What does UserService do?"
+  "question": "What REST endpoints are exposed by UserController?"
 }
 
-# List workspaces
-GET /api/v1/workspaces
-
-# Create a workspace
-POST /api/v1/workspaces
-{
-  "project_id": "my_project",
-  "alias": "My Spring Boot App",
-  "root_path": "projects/myproject"
-}
-
-# Switch active workspace
-PUT /api/v1/workspaces/{project_id}/activate
-
-# Run diagnostics
+# Run System Diagnostics
 GET /api/v1/diagnostics
-```
 
-> Interactive API docs are at `http://localhost:8000/docs` (Swagger UI).
-
----
-
-## 🔌 VS Code Extension
-
-ECIP Lite comes with a built-in VS Code extension providing a polished chat interface right inside your IDE sidebar.
-
-### ✨ Key Extension Features
-- **Real-Time Token Streaming**: Watch the model output answer tokens instantly one-by-one as they generate.
-- **Index Status Indicator**: Visual colored status badge shows whether your selected workspace is indexed (along with indexed files count) or not.
-- **Rich Markdown Formatting**: Supports clean code headers, bold/italics, and nested bullet points matching standard code editors.
-- **Source Badges**: Clickable citations allow you to jump directly to the exact file and line number cited by the model.
-- **Sleek Gray-on-Black Theme**: Customized dark theme blending seamlessly into VS Code's environment.
-
-### Development Setup
-1. Open the `/vscode-extension` directory:
-   ```bash
-   cd vscode-extension
-   ```
-2. Install npm dependencies:
-   ```bash
-   npm install
-   ```
-3. Compile the typescript code:
-   ```bash
-   npm run compile
-   ```
-4. Press `F5` inside VS Code to launch the **Extension Development Host** test window. Make sure your local FastAPI backend server (`python run_api.py`) is running!
-
----
-
-## 📁 Project Structure
-
-```
-ecip-lite/
-│
-├── ecip_core/
-│   ├── scanner/          ← Project file scanner
-│   ├── parser/           ← AST-based Java parser
-│   ├── chunking/         ← Method-level + class overview chunking
-│   ├── embedding/        ← Embedding service + Ollama provider
-│   ├── vectorstore/      ← Persistent FAISS index
-│   ├── storage/sqlite/   ← SQLite repository + database setup
-│   ├── indexing/         ← IndexBuilder (incremental pipeline)
-│   ├── retrieval/        ← Hybrid retrieval, semantic search, context
-│   ├── query/            ← Intent analyzer, entity extractor
-│   ├── prompt/           ← Prompt builder
-│   ├── inference/        ← LLM inference service + providers
-│   ├── dependency/       ← Dependency graph + impact analysis
-│   ├── citations/        ← Citation engine
-│   ├── workspace/        ← Multi-project workspace manager
-│   ├── diagnostics/      ← System health diagnostics
-│   ├── cache/            ← Multi-level cache manager
-│   ├── metrics/          ← Performance metrics collector
-│   ├── logging/          ← Structured logging + correlation IDs
-│   ├── api/              ← FastAPI REST API
-│   ├── output/           ← Response formatter
-│   ├── coordinator/      ← Query coordinator (pipeline orchestrator)
-│   └── main.py           ← CLI entry point
-│
-├── tests/
-│   ├── e2e/              ← End-to-end pipeline tests
-│   ├── integration/      ← Integration tests
-│   └── test_*.py         ← Unit tests per module
-│
-├── vscode-extension/     ← VS Code Extension source code (TypeScript/Webview)
-│   ├── src/              ← Extension controllers and providers
-│   └── package.json      ← VS Code extension manifest
-│
-├── scripts/
-│   └── run_release_validation.py  ← Pre-release gate (all 255 tests)
-│
-├── docs/
-│   ├── RELEASE_CHECKLIST.md
-│   ├── USER_GUIDE.md
-│   ├── DEPLOYMENT_GUIDE.md
-│   ├── DEVELOPER_GUIDE.md
-│   └── ARCHITECTURE.md
-│
-├── projects/             ← Place your Java projects here
-├── .env.example          ← Configuration template
-├── requirements.txt      ← Python dependencies
-├── run_api.py            ← API server entry point
-├── CHANGELOG.md
-├── RELEASE_NOTES.md
-├── CONTRIBUTING.md
-└── LICENSE
+# Access Interactive Dashboard UI
+GET /dashboard/ui
 ```
 
 ---
 
-## 🧪 Running Tests
+## 🏆 100-Prompt Enterprise Milestone
+
+ECIP Enterprise was constructed across a structured 100-Prompt Implementation Playbook:
+
+- **Prompts 001–040**: AST Parsing, Method-Level Chunking, SQLite Metadata, FAISS Vector Store, Hybrid Search, Citation Engine, CLI, FastAPI.
+- **Prompts 041–050**: Post-Release Maintenance, Governance, Enterprise Architecture & Knowledge Graph Specifications.
+- **Prompts 051–065**: Neo4j Graph Provider, BM25 Hybrid Retrieval, Cross-Encoder Reranker, Call Graph Analyzer, RBAC, Multi-Tenancy, Audit Logging, Monitoring.
+- **Prompts 066–075**: Backup & Recovery, Job Scheduler, Distributed Workers, Model Gateway, Plugin SDK, Marketplace, Analytics, Knowledge Dashboard (`/dashboard/ui`), Team Workspaces.
+- **Prompts 076–082**: Event System, Semantic Caching, Agent Memory, Autonomous Planner & Executor, Self-Healing Engine, Knowledge Graph Reasoning.
+- **Prompts 083–090**: Cross-Repo Reasoning, Architecture Advisor, Code Modernization, Refactoring Automation, Continuous Quality, CI/CD Intelligence, Security Intelligence, Release Readiness.
+- **Prompts 091–100**: AI Pair Programmer, Code Review Assistant, Debugging Assistant, Test Generator, Docs Assistant, Architecture Copilot, DevOps Copilot, Operations Center, Autonomous Platform, and v1.0 Production Release.
+
+---
+
+## 🧪 Testing & Verification
+
+Run full test suite across 532 passing unit & integration tests:
 
 ```bash
-# Run full release validation suite (recommended)
-python scripts/run_release_validation.py
-
-# Run all unit tests
-python -m unittest discover tests/ -v
-
-# Run specific test files
-python -m unittest tests/test_parser.py -v
-python -m unittest tests/test_faiss_store.py -v
-python -m unittest tests/e2e/test_e2e_pipeline.py -v
+.venv/bin/python -m pytest tests/ -v
 ```
 
 ---
 
-## 📋 Roadmap
+## 📄 License & Author
 
-### v1.0.0 ✅ (Released)
-- [x] AST-Based Java Parser
-- [x] SQLite Metadata Store
-- [x] Method-Level Chunking
-- [x] Local Embedding Pipeline (Ollama)
-- [x] Incremental Indexing
-- [x] Persistent FAISS Index
-- [x] Batch Embedding Processing
-- [x] Semantic Search
-- [x] Hybrid Retrieval (metadata + semantic)
-- [x] Intent Analyzer
-- [x] REST API (FastAPI)
-- [x] Dependency Graph
-- [x] Impact Analysis
-- [x] Source Citations
-- [x] Multi-Project Workspace Management
-- [x] Diagnostics System
-- [x] Performance Metrics
-- [x] Multi-Level Caching
-- [x] Structured Logging
-- [x] End-to-End Test Suite (255 tests)
-
-### v1.1.0 Enterprise Upgrades ✅ (Released)
-- [x] **Graph Synchronization Engine**: Incremental updates and orphan cleanup in Neo4j
-- [x] **Cross-Repository Indexing**: Multiple repo tracking and isolation with cross-repo edges
-- [x] **BM25 + Vector Hybrid Search**: Exact keyword retrieval mixed with dense vector semantic search
-- [x] **Cross-Encoder Re-ranking**: Second-stage candidate scoring for maximum precision
-- [x] **Advanced Call Graph Analysis**: Static method-level invocation mapping (`CALLS`, `OVERRIDES`, `IMPLEMENTS_METHOD`)
-
-### v1.2 (Planned)
-- [ ] Multi-user support
-- [ ] Docker deployment
-- [ ] Go / JavaScript language support
+- **License**: Licensed under the [MIT License](LICENSE).
+- **Author**: **Samir Zade** ([GitHub](https://github.com/Zade-Samir) | [LinkedIn](https://www.linkedin.com/in/samir-zade/))
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Development setup
-- Branch naming conventions
-- Commit message format
-- Pull request process
-- Testing requirements
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
-
----
-
-## 🙋 Author
-
-**Samir Zade**  
-Building ECIP Lite as part of my #BuildInPublic journey.
-
-Follow the progress on [LinkedIn](https://www.linkedin.com/in/samir-zade/)
-
----
-
-> ⭐ If this project helps you, give it a star — it motivates continued development!
+> ⭐ If ECIP helps your team, give it a star on GitHub!
