@@ -110,6 +110,16 @@ class IndexBuilder:
             stats["removed"] += 1
 
         # 3. Process active files
+        # FAISS-DB consistency check: if FAISS is empty but files have stored hashes,
+        # those hashes are stale (e.g., previous indexing crashed mid-way).
+        # Force a fresh re-index by clearing stored hashes for all active files.
+        if self.faiss_store.index.ntotal == 0 and any(
+            self.repository.get_file_hash(str(f.resolve())) for f in all_files
+        ):
+            logger.warning("FAISS empty but DB has stale hashes — forcing fresh re-index")
+            for f in all_files:
+                self.repository.clear_file_hash(str(f.resolve()))
+
         for file in all_files:
             file_path_str = str(file.resolve())
             curr_hash = active_files[file_path_str]
@@ -175,14 +185,25 @@ class IndexBuilder:
                         logger.error("Parse failure")
                         raise e
                 else:
-                    # Re-parse changed Java file
+                    # Re-parse changed Java file — non-fatal: skip file on error
                     try:
                         parsed = self.parser.parse(file_path_str)
                     except Exception as e:
-                        logger.error("Database failure")
-                        raise e
+                        logger.warning(f"Parse failure for {file.name} (invalid syntax?) — skipping: {e}")
+                        stats["indexed"] -= 1
+                        stats["skipped"] += 1
+                        continue  # Skip to next file, don't crash whole build
 
-                    # Save metadata and file_hash in database
+                    # Re-chunk changed Java file — non-fatal: skip file on error
+                    try:
+                        chunks = self.chunker.chunk(file_path_str)
+                    except Exception as e:
+                        logger.warning(f"Chunk failure for {file.name} — skipping: {e}")
+                        stats["indexed"] -= 1
+                        stats["skipped"] += 1
+                        continue
+
+                    # Save metadata and file_hash ONLY after successful parse+chunk
                     self.repository.save(parsed, file_hash=curr_hash)
 
                     # Build class dependency edges
@@ -190,13 +211,6 @@ class IndexBuilder:
 
                     # Sync graph database (Project, Package, Class, Method nodes)
                     self.synchronizer.sync_class(project_id, parsed)
-
-                    # Re-chunk changed Java file
-                    try:
-                        chunks = self.chunker.chunk(file_path_str)
-                    except Exception as e:
-                        logger.error("FAISS update failure")
-                        raise e
 
                 # Generate embeddings in batch for all chunks of this file
                 if chunks:
@@ -213,8 +227,9 @@ class IndexBuilder:
                         for embedding in embeddings:
                             self.faiss_store.add(embedding)
                     except Exception as e:
-                        logger.error("FAISS update failure")
-                        raise e
+                        logger.warning(f"Embedding failure for {file.name} — skipping: {e}")
+                        stats["indexed"] -= 1
+                        stats["skipped"] += 1
 
         # Generate Git history chunks
         git_chunks = self._generate_git_chunks(project_id, project_path, java_files)
