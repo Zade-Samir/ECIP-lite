@@ -1,0 +1,54 @@
+<idea-plugin>
+    <id>com.samirzade.ecip.lite</id>
+    <name>ECIP Lite</name>
+    <vendor email="samir@example.com" url="https://github.com/Zade-Samir">Samir Zade</vendor>
+
+    <description><![CDATA[
+    Offline, privacy-first AI code intelligence plugin for JetBrains IDEs.
+    Integrates with ECIP Lite to provide in-editor Q&A, indexing, and navigation.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Register Tool Window -->
+        <toolWindow id="ECIP Chat" 
+                    anchor="right" 
+                    factoryClass="com.samirzade.ecip.toolwindow.EcipToolWindowFactory" 
+                    icon="AllIcons.Actions.Lightning"/>
+        
+        <!-- Register Persistent Settings -->
+        <applicationService serviceImplementation="com.samirzade.ecip.settings.EcipSettings"/>
+    </extensions>
+
+    <actions>
+        <!-- Editor context menu group -->
+        <group id="Ecip.EditorGroup" text="ECIP Lite" popup="true" icon="AllIcons.Actions.Lightning">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <action id="Ecip.AskQuestion" 
+                    class="com.samirzade.ecip.actions.AskQuestionAction" 
+                    text="Ask ECIP..." 
+                    description="Ask a question about the current context"/>
+            <action id="Ecip.ExplainSelection" 
+                    class="com.samirzade.ecip.actions.ExplainSelectionAction" 
+                    text="Explain Selection" 
+                    description="Explain selected code snippet"/>
+            <action id="Ecip.ExplainClass" 
+                    class="com.samirzade.ecip.actions.ExplainClassAction" 
+                    text="Explain Class" 
+                    description="Explain current class file"/>
+            <action id="Ecip.ShowDependencies" 
+                    class="com.samirzade.ecip.actions.ShowDependenciesAction" 
+                    text="Show Dependencies" 
+                    description="Show dependencies of this class"/>
+            <action id="Ecip.IndexProject" 
+                    class="com.samirzade.ecip.actions.IndexProjectAction" 
+                    text="Index Project" 
+                    description="Index current project in ECIP"/>
+            <action id="Ecip.OpenCitations" 
+                    class="com.samirzade.ecip.actions.OpenCitationsAction" 
+                    text="Open Citations" 
+                    description="Open recent citations"/>
+        </group>
+    </actions>
+</idea-plugin>

@@ -15,6 +15,28 @@
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
+    "commands": [
+      {
+        "command": "ecip-lite.askQuestion",
+        "title": "ECIP: Ask Question"
+      },
+      {
+        "command": "ecip-lite.explainSelection",
+        "title": "ECIP: Explain Selection"
+      },
+      {
+        "command": "ecip-lite.indexWorkspace",
+        "title": "ECIP: Index Workspace"
+      },
+      {
+        "command": "ecip-lite.showDependencies",
+        "title": "ECIP: Show Dependencies"
+      },
+      {
+        "command": "ecip-lite.openCitations",
+        "title": "ECIP: Open Citations"
+      }
+    ],
     "configuration": {
       "title": "ECIP Lite",
       "properties": {

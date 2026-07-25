@@ -20,6 +20,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this._selectedModel = this._context.globalState.get<string>('selectedModel');
     }
 
+    public askQuestion(question: string) {
+        if (this._view) {
+            this._view.show(true);
+            this._view.webview.postMessage({
+                type: 'triggerQuery',
+                question: question
+            });
+        }
+    }
+
     private get _extensionUri(): vscode.Uri {
         return this._context.extensionUri;
     }
@@ -180,7 +190,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async indexCurrentWorkspace() {
+    public async indexCurrentWorkspace() {
         const folders = vscode.workspace.workspaceFolders;
         if (!folders || folders.length === 0) {
             vscode.window.showErrorMessage('No workspace folder open in VS Code to index.');
@@ -1044,6 +1054,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'backendError': {
                     renderMessage(message.message, 'error');
+                    break;
+                }
+                case 'triggerQuery': {
+                    const textarea = document.getElementById('question-input');
+                    if (textarea) {
+                        textarea.value = message.question;
+                        const sendBtn = document.getElementById('btn-send');
+                        if (sendBtn) {
+                            sendBtn.click();
+                        }
+                    }
                     break;
                 }
                 case 'queryToken': {
