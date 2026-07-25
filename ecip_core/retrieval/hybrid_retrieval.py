@@ -27,6 +27,18 @@ class HybridRetrieval:
         Retrieves matching code chunks using a hybrid approach:
         Deterministic metadata matches rank first, followed by semantic vector results.
         """
+        import os
+        if os.environ.get("HYBRID_BM25_ENABLED", "true").lower() == "true":
+            from ecip_core.retrieval.hybrid.hybrid_retrieval_engine import HybridRetrievalEngine
+            bm25_w = float(os.environ.get("BM25_WEIGHT", "0.40"))
+            vec_w = float(os.environ.get("VECTOR_WEIGHT", "0.60"))
+            engine = HybridRetrievalEngine(
+                self.semantic_search,
+                bm25_weight=bm25_w,
+                vector_weight=vec_w
+            )
+            return engine.retrieve(query, k)
+
         if not query or not query.strip():
             logger.info("Hybrid query empty, returning empty list.")
             return []

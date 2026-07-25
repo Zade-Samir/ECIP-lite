@@ -150,6 +150,29 @@ class IndexBuilder:
                 for embedding in embeddings:
                     self.faiss_store.add(embedding)
 
+        # Build and save BM25 index
+        try:
+            from ecip_core.search.bm25.bm25 import BM25Index
+            bm25_index = BM25Index()
+            chunks_to_index = []
+            for e in self.faiss_store.metadata:
+                chunks_to_index.append({
+                    "chunk_id": e.chunk_id,
+                    "content": e.source_code,
+                    "file_path": e.file_path,
+                    "class_name": e.class_name,
+                    "method_name": e.method_name,
+                    "start_line": e.start_line,
+                    "end_line": e.end_line,
+                    "chunk_type": e.chunk_type
+                })
+            bm25_index.fit(chunks_to_index)
+            bm25_path = str(ecip_dir / "bm25_index.json")
+            bm25_index.save(bm25_path)
+            logger.info("BM25 index saved")
+        except Exception as e:
+            logger.error(f"Failed to build BM25 index: {e}")
+
         duration = time.perf_counter() - start_time
         logger.info(f"Total duration: {duration:.4f}s")
 
