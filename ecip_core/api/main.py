@@ -9,6 +9,7 @@ sqlite3.connect = custom_connect
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ecip_core.api.routes import query_router, indexing_router, projects_router, workspace_router
+from dashboard.backend import router as dashboard_router
 
 app = FastAPI(
     title="ECIP Lite API",
@@ -29,6 +30,7 @@ app.include_router(query_router,     prefix="/api/v1", tags=["Query"])
 app.include_router(indexing_router,  prefix="/api/v1", tags=["Index"])
 app.include_router(projects_router,  prefix="/api/v1", tags=["Projects"])
 app.include_router(workspace_router, prefix="/api/v1", tags=["Workspaces & Diagnostics"])
+app.include_router(dashboard_router, tags=["Dashboard"])
 
 
 @app.get("/health", tags=["System"])
