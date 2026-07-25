@@ -66,3 +66,13 @@ class GraphSettings(BaseModel):
     neo4j_uri: str = Field(default="bolt://localhost:7687", description="Neo4j bolt URI.")
     neo4j_username: str = Field(default="neo4j", description="Neo4j username.")
     neo4j_password: str = Field(default="password", description="Neo4j password.")
+
+
+class RerankingSettings(BaseModel):
+    model_name: str = Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2", description="Cross-encoder model name.")
+    batch_size: int = Field(default=16, description="Batch size for re-ranking inference.")
+    max_candidates: int = Field(default=50, description="Max candidate count to re-rank.")
+    top_k: int = Field(default=10, description="Number of results to return after re-ranking.")
+    device: str = Field(default="cpu", description="Hardware device ('cpu', 'cuda', etc.).")
+    enable_reranking: bool = Field(default=True, description="Whether to enable the re-ranking stage.")
+

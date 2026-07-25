@@ -19,6 +19,7 @@ from ecip_core.config.domains import (
     CacheSettings,
     ExperimentalSettings,
     GraphSettings,
+    RerankingSettings,
 )
 from ecip_core.config.profiles import PROFILE_DEFAULTS
 
@@ -84,6 +85,14 @@ class Settings(BaseSettings):
     NEO4J_URI: str = Field(default="bolt://localhost:7687")
     NEO4J_USERNAME: str = Field(default="neo4j")
     NEO4J_PASSWORD: str = Field(default="password")
+
+    # Re-ranking Domain
+    RERANKING_MODEL_NAME: str = Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2", validation_alias="RERANKING_MODEL_NAME")
+    RERANKING_BATCH_SIZE: int = Field(default=16, validation_alias="RERANKING_BATCH_SIZE")
+    RERANKING_MAX_CANDIDATES: int = Field(default=50, validation_alias="RERANKING_MAX_CANDIDATES")
+    RERANKING_TOP_K: int = Field(default=10, validation_alias="RERANKING_TOP_K")
+    RERANKING_DEVICE: str = Field(default="cpu", validation_alias="RERANKING_DEVICE")
+    ENABLE_RERANKING: bool = Field(default=True, validation_alias="ENABLE_RERANKING")
 
     # Validators
     @field_validator("ECIP_PROFILE")
@@ -205,6 +214,17 @@ class Settings(BaseSettings):
             neo4j_password=self.NEO4J_PASSWORD
         )
 
+    @property
+    def reranking(self) -> RerankingSettings:
+        return RerankingSettings(
+            model_name=self.RERANKING_MODEL_NAME,
+            batch_size=self.RERANKING_BATCH_SIZE,
+            max_candidates=self.RERANKING_MAX_CANDIDATES,
+            top_k=self.RERANKING_TOP_K,
+            device=self.RERANKING_DEVICE,
+            enable_reranking=self.ENABLE_RERANKING
+        )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"
@@ -262,6 +282,12 @@ def load_settings() -> Settings:
         "NEO4J_URI": "graph__neo4j_uri",
         "NEO4J_USERNAME": "graph__neo4j_username",
         "NEO4J_PASSWORD": "graph__neo4j_password",
+        "RERANKING_MODEL_NAME": "reranking__model_name",
+        "RERANKING_BATCH_SIZE": "reranking__batch_size",
+        "RERANKING_MAX_CANDIDATES": "reranking__max_candidates",
+        "RERANKING_TOP_K": "reranking__top_k",
+        "RERANKING_DEVICE": "reranking__device",
+        "ENABLE_RERANKING": "reranking__enable_reranking",
     }
 
     keys_to_clear = []
