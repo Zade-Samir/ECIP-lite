@@ -28,9 +28,19 @@ class TestIndexBuilder(unittest.TestCase):
         # Configure logging capture
         self.log_handler = LogCaptureHandler()
         self.log_handler.setLevel(logging.DEBUG)
-        logging.getLogger("ecip_core.indexing.index_builder").addHandler(self.log_handler)
-        logging.getLogger("ecip_core.vectorstore.faiss_store").addHandler(self.log_handler)
-        logging.getLogger("ecip_core.storage.sqlite.repository").addHandler(self.log_handler)
+        
+        logger_ib = logging.getLogger("ecip_core.indexing.index_builder")
+        logger_ib.setLevel(logging.DEBUG)
+        logger_ib.addHandler(self.log_handler)
+        
+        logger_fs = logging.getLogger("ecip_core.vectorstore.faiss_store")
+        logger_fs.setLevel(logging.DEBUG)
+        logger_fs.addHandler(self.log_handler)
+        
+        logger_repo = logging.getLogger("ecip_core.storage.sqlite.repository")
+        logger_repo.setLevel(logging.DEBUG)
+        logger_repo.addHandler(self.log_handler)
+        
         self.log_capture = self.log_handler.records
         
         # Patch EmbeddingService.generate to return fake vectors

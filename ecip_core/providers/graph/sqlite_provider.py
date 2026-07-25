@@ -26,6 +26,10 @@ class SqliteGraphProvider(GraphProvider):
     def _get_conn(self):
         if self.db is None:
             self.connect()
+        try:
+            self.db.get_connection().execute("SELECT 1")
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            self.connect()
         return self.db.get_connection()
 
     def create_node(self, label: str, properties: Dict[str, Any]) -> None:
