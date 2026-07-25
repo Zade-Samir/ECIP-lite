@@ -9,6 +9,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private _selectedModel: string | undefined;
     private _isProactivelyIndexing: Set<string> = new Set();
+    private _saveDebounceTimers: Map<string, NodeJS.Timeout> = new Map();
 
     private logDebug(msg: string) {
         try {
@@ -328,6 +329,57 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         });
     }
 
+    public async indexSingleFile(filePath: string) {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) { return; }
+
+        const projectPath = folders[0].uri.fsPath;
+        const projectAlias = folders[0].name;
+
+        // Only re-index files that belong to the current workspace
+        if (!filePath.startsWith(projectPath)) { return; }
+
+        const SUPPORTED_EXTENSIONS = ['.java', '.sql', '.properties', '.yml', '.yaml'];
+        const ext = filePath.slice(filePath.lastIndexOf('.'));
+        if (!SUPPORTED_EXTENSIONS.includes(ext)) { return; }
+
+        // Debounce: cancel previous timer for this file if another save comes quickly
+        const existingTimer = this._saveDebounceTimers.get(filePath);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        const timer = setTimeout(async () => {
+            this._saveDebounceTimers.delete(filePath);
+            this.logDebug(`Auto re-indexing saved file: ${filePath}`);
+
+            try {
+                const response = await fetch(`${this.getApiUrl()}/api/v1/index`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_path: projectPath,
+                        project_alias: projectAlias
+                    })
+                });
+
+                if (response.ok) {
+                    const fileName = filePath.split('/').pop() || filePath;
+                    vscode.window.setStatusBarMessage(
+                        `$(sync~spin) ECIP: Re-indexed ${fileName}`,
+                        3000
+                    );
+                } else {
+                    this.logDebug(`Auto re-index failed with status: ${response.status}`);
+                }
+            } catch (e) {
+                this.logDebug(`Auto re-index fetch error: ${e}`);
+            }
+        }, 1500); // 1.5 sec debounce: wait for rapid successive saves to settle
+
+        this._saveDebounceTimers.set(filePath, timer);
+    }
+
     private async handleQuery(projectId: string, question: string) {
         if (!projectId) {
             this._view?.webview.postMessage({
@@ -336,6 +388,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             });
             return;
         }
+
 
         // Retrieve and update history
         if (!this._chatHistory.has(projectId)) {
