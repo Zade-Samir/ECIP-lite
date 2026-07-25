@@ -77,6 +77,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     await this.openFileAtLine(data.filePath, data.startLine, data.endLine);
                     break;
                 }
+                case 'insertCode': {
+                    await this.insertCodeAtCursor(data.content);
+                    break;
+                }
                 case 'applyCode': {
                     await this.applyCodeToActiveEditor(data.content);
                     break;
@@ -498,6 +502,44 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             }
         } catch (err: any) {
             vscode.window.showErrorMessage(`Could not open file: ${err.message}`);
+        }
+    }
+
+    private async insertCodeAtCursor(content: string) {
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor open in VS Code to insert code.');
+                return;
+            }
+
+            const document = editor.document;
+            const selection = editor.selection;
+
+            await editor.edit(editBuilder => {
+                if (!selection.isEmpty) {
+                    editBuilder.replace(selection, content);
+                } else {
+                    const text = document.getText();
+                    const lastBraceIndex = text.lastIndexOf('}');
+                    
+                    if (selection.active.line > 0 && selection.active.line < document.lineCount - 1) {
+                        editBuilder.insert(selection.active, "\n" + content + "\n");
+                    } else if (lastBraceIndex !== -1) {
+                        const pos = document.positionAt(lastBraceIndex);
+                        editBuilder.insert(pos, "\n    " + content + "\n");
+                    } else {
+                        editBuilder.insert(selection.active, "\n" + content + "\n");
+                    }
+                }
+            });
+
+            await document.save();
+            const fileName = path.basename(document.fileName);
+            vscode.window.showInformationMessage(`ECIP: Successfully inserted snippet into ${fileName}`);
+            this.indexSingleFile(document.fileName);
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to insert code: ${err.message}`);
         }
     }
 
@@ -1557,6 +1599,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             });
         };
 
+        window.insertCodeBlock = function(btn) {
+            const pre = btn.closest('.code-block-container').querySelector('pre');
+            const codeText = pre.innerText || pre.textContent;
+            vscode.postMessage({
+                type: 'insertCode',
+                content: codeText
+            });
+        };
+
         window.applyCodeBlock = function(btn) {
             const pre = btn.closest('.code-block-container').querySelector('pre');
             const codeText = pre.innerText || pre.textContent;
@@ -1592,7 +1643,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         '<div class="code-block-header">' +
                             '<span class="code-block-lang"><span class="code-icon">&lt;/&gt;</span> ' + language + '</span>' +
                             '<div style="display: flex; gap: 4px;">' +
-                                '<button class="btn-copy" onclick="applyCodeBlock(this)" title="Apply changes to active file in VS Code">📝 Apply</button>' +
+                                '<button class="btn-copy" onclick="insertCodeBlock(this)" title="Insert snippet at cursor position in VS Code active editor" style="background-color: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">📥 Accept / Insert</button>' +
+                                '<button class="btn-copy" onclick="applyCodeBlock(this)" title="Replace whole file content in VS Code active editor">📝 Replace All</button>' +
                                 '<button class="btn-copy" onclick="createFileBlock(this)" title="Create a new file in workspace">➕ Create File</button>' +
                                 '<button class="btn-copy" onclick="copyCodeBlock(this)" title="Copy code to clipboard">Copy</button>' +
                             '</div>' +
