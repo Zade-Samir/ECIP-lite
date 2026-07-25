@@ -2,6 +2,29 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export class ProposedContentProvider implements vscode.TextDocumentContentProvider {
+    private static _instance: ProposedContentProvider;
+    private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+    readonly onDidChange = this._onDidChange.event;
+    private _contents = new Map<string, string>();
+
+    public static getInstance(): ProposedContentProvider {
+        if (!ProposedContentProvider._instance) {
+            ProposedContentProvider._instance = new ProposedContentProvider();
+        }
+        return ProposedContentProvider._instance;
+    }
+
+    public setContent(uri: vscode.Uri, content: string) {
+        this._contents.set(uri.toString(), content);
+        this._onDidChange.fire(uri);
+    }
+
+    public provideTextDocumentContent(uri: vscode.Uri): string {
+        return this._contents.get(uri.toString()) || '';
+    }
+}
+
 export class SidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'ecip-lite-chat-view';
     private _view?: vscode.WebviewView;
@@ -79,6 +102,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'insertCode': {
                     await this.insertCodeAtCursor(data.content);
+                    break;
+                }
+                case 'proposeDiff': {
+                    await this.proposeDiffReview(data.content);
                     break;
                 }
                 case 'applyCode': {
@@ -540,6 +567,70 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             this.indexSingleFile(document.fileName);
         } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to insert code: ${err.message}`);
+        }
+    }
+
+    private async proposeDiffReview(content: string) {
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor open in VS Code to review proposed diff.');
+                return;
+            }
+
+            const document = editor.document;
+            const originalUri = document.uri;
+            const fileName = path.basename(document.fileName);
+
+            let proposedText = content;
+            const originalText = document.getText();
+
+            if (!content.includes('class ') && !content.startsWith('package ')) {
+                const lastBraceIndex = originalText.lastIndexOf('}');
+                if (lastBraceIndex !== -1) {
+                    proposedText = originalText.substring(0, lastBraceIndex) + 
+                        "\n    // Proposed Method from ECIP AI\n    " + content.trim() + "\n" + 
+                        originalText.substring(lastBraceIndex);
+                }
+            }
+
+            const proposedUri = vscode.Uri.parse(`ecip-proposed:/${fileName}`);
+            ProposedContentProvider.getInstance().setContent(proposedUri, proposedText);
+
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                originalUri,
+                proposedUri,
+                `${fileName} ↔ ECIP Proposed Edits`
+            );
+
+            const choice = await vscode.window.showInformationMessage(
+                `ECIP Proposes Changes for ${fileName}. Review diff and select action:`,
+                'Accept All',
+                'Reject All'
+            );
+
+            if (choice === 'Accept All') {
+                const activeEd = vscode.window.visibleTextEditors.find(e => e.document.uri.fsPath === document.uri.fsPath) || editor;
+                const fullRange = new vscode.Range(
+                    activeEd.document.positionAt(0),
+                    activeEd.document.positionAt(activeEd.document.getText().length)
+                );
+
+                await activeEd.edit(editBuilder => {
+                    editBuilder.replace(fullRange, proposedText);
+                });
+
+                await activeEd.document.save();
+                vscode.window.showInformationMessage(`ECIP: Accepted changes in ${fileName}`);
+                this.indexSingleFile(document.fileName);
+                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            } else if (choice === 'Reject All') {
+                vscode.window.showInformationMessage(`ECIP: Rejected changes for ${fileName}`);
+                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            }
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Diff Review failed: ${err.message}`);
         }
     }
 
@@ -1599,6 +1690,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             });
         };
 
+        window.proposeDiffBlock = function(btn) {
+            const pre = btn.closest('.code-block-container').querySelector('pre');
+            const codeText = pre.innerText || pre.textContent;
+            vscode.postMessage({
+                type: 'proposeDiff',
+                content: codeText
+            });
+        };
+
         window.insertCodeBlock = function(btn) {
             const pre = btn.closest('.code-block-container').querySelector('pre');
             const codeText = pre.innerText || pre.textContent;
@@ -1643,8 +1743,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         '<div class="code-block-header">' +
                             '<span class="code-block-lang"><span class="code-icon">&lt;/&gt;</span> ' + language + '</span>' +
                             '<div style="display: flex; gap: 4px;">' +
-                                '<button class="btn-copy" onclick="insertCodeBlock(this)" title="Insert snippet at cursor position in VS Code active editor" style="background-color: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">📥 Accept / Insert</button>' +
-                                '<button class="btn-copy" onclick="applyCodeBlock(this)" title="Replace whole file content in VS Code active editor">📝 Replace All</button>' +
+                                '<button class="btn-copy" onclick="proposeDiffBlock(this)" title="Review proposed changes side-by-side with Accept/Reject buttons" style="background-color: #2563eb; border-color: #3b82f6; color: #ffffff; font-weight: 600;">🔍 Review Diff & Accept</button>' +
+                                '<button class="btn-copy" onclick="insertCodeBlock(this)" title="Insert snippet at cursor position in VS Code active editor" style="background-color: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">📥 Insert at Cursor</button>' +
                                 '<button class="btn-copy" onclick="createFileBlock(this)" title="Create a new file in workspace">➕ Create File</button>' +
                                 '<button class="btn-copy" onclick="copyCodeBlock(this)" title="Copy code to clipboard">Copy</button>' +
                             '</div>' +

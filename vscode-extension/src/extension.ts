@@ -1,9 +1,17 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { SidebarProvider } from './sidebarProvider';
+import { SidebarProvider, ProposedContentProvider } from './sidebarProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('ECIP Lite Extension is now active!');
+
+    // Register proposed content provider for side-by-side diff review
+    context.subscriptions.push(
+        vscode.workspace.registerTextDocumentContentProvider(
+            'ecip-proposed',
+            ProposedContentProvider.getInstance()
+        )
+    );
 
     // Initialize the sidebar view provider
     const sidebarProvider = new SidebarProvider(context);
