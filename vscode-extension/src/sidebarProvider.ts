@@ -1152,9 +1152,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                                 let snippets = [];
                                 message.citations.forEach((c, idx) => {
                                     if (c.content && c.content.trim()) {
-                                        const fileBase = c.file_path.split('/').pop().split('\\').pop();
+                                        const fileBase = c.file_path.split('/').pop().split('\\\\').pop();
                                         snippets.push(
-                                            '--- Reference [' + (idx + 1) + ']: ' + fileBase + ' ---\n' +
+                                            '--- Reference [' + (idx + 1) + ']: ' + fileBase + ' ---\\n' +
                                             c.content.trim()
                                         );
                                     }
@@ -1169,7 +1169,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                                                 '</div>' +
                                                 '<span class="reasoning-chevron">▶</span>' +
                                             '</summary>' +
-                                            '<div class="reasoning-content" style="white-space: pre;">' + escapeHtml(snippets.join('\n\n')) + '</div>' +
+                                            '<div class="reasoning-content" style="white-space: pre;">' + escapeHtml(snippets.join('\\n\\n')) + '</div>' +
                                         '</details>';
                                 }
                             }
