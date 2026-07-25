@@ -1631,10 +1631,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             <div class="left-actions">
                 <div class="model-select-wrapper" title="Select Local LLM Model">
                     <span>+</span>
-                    <span id="selected-model-label">Loading...</span>
+                    <span id="selected-model-label"></span>
                     <span>▾</span>
                     <select id="model-select">
-                        <option value="">Loading...</option>
+                        <option value=""></option>
                     </select>
                 </div>
             </div>
@@ -1709,9 +1709,40 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Pull initial configurations - sent AFTER message listener is registered below
 
-        // Index current folder
+        // Index current folder – call backend directly from webview to avoid timing issues
         indexCurrBtn.addEventListener('click', () => {
-            vscode.postMessage({ type: 'indexCurrentWorkspace' });
+            const btnOrigText = indexCurrBtn.textContent;
+            indexCurrBtn.disabled = true;
+            indexCurrBtn.textContent = '⏳ Indexing...';
+
+            // Use the currently selected project path or request from extension
+            const selectedProjectId = select.value;
+            const selectedProject = currentWorkspaces.find(w => w.project_id === selectedProjectId);
+
+            if (selectedProject && selectedProject.root_path) {
+                // We already know the path – call API directly
+                fetch('http://127.0.0.1:8000/api/v1/index', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_path: selectedProject.root_path,
+                        project_alias: selectedProject.project_id
+                    })
+                }).then(r => r.json()).then(data => {
+                    indexCurrBtn.disabled = false;
+                    indexCurrBtn.textContent = btnOrigText;
+                    vscode.postMessage({ type: 'getWorkspaces' });
+                }).catch(err => {
+                    indexCurrBtn.disabled = false;
+                    indexCurrBtn.textContent = btnOrigText;
+                    vscode.postMessage({ type: 'showWarning', message: 'Indexing failed: ' + err.message });
+                });
+            } else {
+                // Fallback to extension handler
+                vscode.postMessage({ type: 'indexCurrentWorkspace' });
+                indexCurrBtn.disabled = false;
+                indexCurrBtn.textContent = btnOrigText;
+            }
         });
 
         function updateStatusBadge() {
@@ -1996,6 +2027,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         // NOW post the 'ready' message - listener is registered above, so messages can be received
         logWebview("Posting ready event");
         vscode.postMessage({ type: 'ready' });
+
+        // Also directly fetch models and workspaces from backend
+        // This ensures UI populates even if the extension message round-trip has timing issues
+        setTimeout(() => {
+            fetch('http://127.0.0.1:8000/api/v1/query/models')
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.models && data.models.length > 0) {
+                        updateModelDropdown(data.models, data.models[0]);
+                    }
+                })
+                .catch(() => {});
+
+            fetch('http://127.0.0.1:8000/api/v1/workspaces')
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.workspaces) {
+                        currentWorkspaces = data.workspaces;
+                        const indexed = data.workspaces.filter(w => w.indexed_files && w.indexed_files > 0);
+                        const bestId = indexed.length > 0 ? indexed.reduce((a, b) =>
+                            (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexed[0]).project_id : null;
+                        updateProjectSelect(data.workspaces, bestId);
+                    }
+                })
+                .catch(() => {});
+        }, 300);
 
         function updateProjectSelect(workspaces, activeId) {
             select.innerHTML = '';
