@@ -1081,6 +1081,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         let currentWorkspaces = [];
 
+        // Smart scroll: track if user has manually scrolled up during streaming
+        let userScrolledUp = false;
+        chatArea.addEventListener('scroll', () => {
+            // If user is within 60px of bottom, consider them at the bottom
+            const distanceFromBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight;
+            userScrolledUp = distanceFromBottom > 60;
+        });
+
         // Update status badge and restore history on selection change
         select.addEventListener('change', () => {
             updateStatusBadge();
@@ -1144,8 +1152,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (!question) return;
 
             // Render user message
+            userScrolledUp = false; // Reset: new message → always scroll to bottom
             renderMessage(question, 'user');
             input.value = '';
+            scrollToBottom(true); // Force scroll for new message
 
             // Render assistant placeholder for streaming
             accumulatedAnswer = "";
@@ -1634,8 +1644,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 .replace(/>/g, "&gt;");
         }
 
-        function scrollToBottom() {
-            chatArea.scrollTop = chatArea.scrollHeight;
+        function scrollToBottom(force) {
+            // Only auto-scroll if user hasn't manually scrolled up, or if forced (new message sent)
+            if (force || !userScrolledUp) {
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
         }
     </script>
 </body>
