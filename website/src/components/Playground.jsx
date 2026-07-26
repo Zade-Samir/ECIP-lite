@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Terminal, Code2, Network, FileText, Cpu, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 const PRESETS = [
   {
-    title: "🔍 Auth & Token Flow",
-    question: "How does authentication & token validation work in this project?",
-    answer: `The authentication pipeline is managed across 3 primary components:
+    title: "Auth & Token Flow",
+    question: "How does authentication & token validation work?",
+    answer: `The authentication pipeline spans 3 primary components:
 
-1. AuthController.java (L45-L78): Handles POST /api/v1/auth/login. Receives credentials and passes them to UserService.authenticate().
-2. JwtTokenService.java (L102-L134): Generates signed JWT payload containing tenant claims, user scopes, and expiration timestamp.
-3. JwtSecurityFilter.java (L15-L60): Intercepts all incoming HTTP requests, validates cryptographic signature against local secret key, and injects TenantContext.`,
+1. AuthController.java (L45-L78): Handles POST /api/v1/auth/login and validates credentials via UserService.
+2. JwtTokenService.java (L102-L134): Generates signed JWT payload with tenant claims, user scopes, and expiry timestamp.
+3. JwtSecurityFilter.java (L15-L60): Intercepts HTTP requests, validates cryptographic signature locally, and injects TenantContext.`,
     ast: `AST Dependency Graph:
   [Class] AuthController
     ├── @RestController
@@ -21,190 +21,175 @@ const PRESETS = [
         ├── JwtTokenService.validateToken(String token)
         └── SecurityContextHolder.getContext().setAuthentication(...)`,
     citations: [
-      "📄 src/main/java/com/ecip/auth/AuthController.java (Lines 45-78)",
-      "📄 src/main/java/com/ecip/auth/JwtTokenService.java (Lines 102-134)",
-      "📄 src/main/java/com/ecip/security/JwtSecurityFilter.java (Lines 15-60)"
+      { file: "AuthController.java (Lines 45-78)", tier: "FAISS Tier 1", color: "indigo" },
+      { file: "JwtTokenService.java (Lines 102-134)", tier: "Class Match", color: "purple" },
+      { file: "JwtSecurityFilter.java (Lines 15-60)", tier: "Vector 0.94", color: "emerald" },
     ],
-    telemetry: `⚡ Retrieval Latency: 14.2 ms\n🧠 Intent Analysis: "qa_explain" (Confidence: 0.98)\n📦 Retrieved Chunks: 4 (2 Hybrid, 2 AST Method)\n🦙 Ollama Model: qwen2.5-coder:7b (Total duration: 840 ms)`
+    telemetry: `⚡ Retrieval Latency: 14.2 ms
+🧠 Intent: "qa_explain" (Confidence: 0.98)
+📦 Retrieved Chunks: 4 (2 Hybrid, 2 AST Method)
+🦙 Ollama: qwen2.5-coder:7b (840 ms total)`
   },
   {
-    title: "⚡ Impact Analysis of UserService",
-    question: "What classes are impacted if I change UserService method signatures?",
-    answer: `Impact Analysis Engine executed downstream dependency graph traversal at depth=3:
+    title: "Impact Analysis",
+    question: "What breaks if I change UserService method signatures?",
+    answer: `Impact Analysis traversed the downstream dependency graph at depth=3:
 
 Changes to UserService.java affect 7 downstream components:
 
-• Controllers (Direct Callers):
+• Direct Controllers:
   - AuthController.java (calls UserService.login, UserService.register)
   - UserController.java (calls UserService.getProfile, UserService.updateRole)
 
-• Services & Workers (Indirect Dependencies):
+• Indirect Consumers:
   - AuditLogService.java (subscribes to UserCreatedEvent)
   - NotificationWorker.java (depends on UserDetails payload)`,
-    ast: `Graph Traversal Path:
-  UserService (Target Class)
+    ast: `Graph Traversal:
+  UserService (Target)
     ├── CALLED_BY ➔ AuthController.java (Line 52)
     ├── CALLED_BY ➔ UserController.java (Line 34, 88)
-    ├── DEPENDS_ON ➔ UserRepository.java (Field Injection)
-    └── EVENT_BUS ➔ AuditLogService.java (Subscriber)`,
+    ├── DEPENDS_ON ➔ UserRepository.java
+    └── EVENT_BUS ➔ AuditLogService.java`,
     citations: [
-      "📄 src/main/java/com/ecip/service/UserService.java (Target)",
-      "📄 src/main/java/com/ecip/controller/AuthController.java",
-      "📄 src/main/java/com/ecip/controller/UserController.java"
+      { file: "UserService.java (Target)", tier: "Primary", color: "indigo" },
+      { file: "AuthController.java", tier: "Depth 1", color: "purple" },
+      { file: "UserController.java", tier: "Depth 1", color: "emerald" },
     ],
-    telemetry: `⚡ Graph Traversal Latency: 6.8 ms\n🧠 Intent Analysis: "impact_analysis" (Routed to Graph Engine)\n🌐 Graph Nodes Evaluated: 14 nodes, 22 directed edges`
+    telemetry: `⚡ Graph Traversal: 6.8 ms
+🧠 Intent: "impact_analysis"
+🌐 Nodes Evaluated: 14 nodes, 22 directed edges`
   },
   {
-    title: "📦 Database Schema & Models",
-    question: "Where are database tables and Flyway SQL migrations defined?",
+    title: "Database Schema",
+    question: "Where are database tables and SQL migrations defined?",
     answer: `Database tables and schema migrations are configured in 2 layers:
 
 1. Flyway SQL Migration Scripts:
-   - V1__init_schema.sql: Defines users, roles, permissions, and foreign key constraints.
-   - V2__add_indexes.sql: Contains performance indexes on users.email and tenant_id.
+   - V1__init_schema.sql: Defines users, roles, permissions with FK constraints.
+   - V2__add_indexes.sql: Performance indexes on users.email and tenant_id.
 
 2. JPA Entity Models:
    - UserEntity.java (mapped to users table)
    - RoleEntity.java (mapped to roles table)`,
-    ast: `SQL & JPA Metadata Parsing:
-  [SQL Table] users
-    ├── Column: id (BIGINT, PRIMARY KEY)
-    ├── Column: email (VARCHAR, UNIQUE)
-    └── Column: tenant_id (VARCHAR, NOT NULL)
+    ast: `SQL & JPA Metadata:
+  [Table] users
+    ├── id (BIGINT, PK)
+    ├── email (VARCHAR, UNIQUE)
+    └── tenant_id (VARCHAR)
 
-  [JPA Entity] UserEntity.java
+  [JPA] UserEntity.java
     ├── @Table(name = "users")
     └── @OneToMany List<RoleEntity> roles`,
     citations: [
-      "📄 src/main/resources/db/migration/V1__init_schema.sql",
-      "📄 src/main/java/com/ecip/model/UserEntity.java (Lines 1-65)"
+      { file: "V1__init_schema.sql", tier: "SQL DDL", color: "indigo" },
+      { file: "V2__add_indexes.sql", tier: "Migration", color: "amber" },
+      { file: "UserEntity.java (Lines 1-65)", tier: "JPA Model", color: "emerald" },
     ],
-    telemetry: `⚡ Hybrid Search Latency: 11.5 ms\n🧠 Intent Analysis: "schema_lookup"\n📦 Chunks Retrieved: 3 SQL DDL tables, 2 Java Entities`
+    telemetry: `⚡ Search Latency: 11.5 ms
+🧠 Intent: "schema_lookup"
+📦 Retrieved: 3 SQL DDL tables, 2 JPA entities`
   }
 ];
 
-export default function Playground() {
-  const [selectedPreset, setSelectedPreset] = useState(0);
-  const [activeTab, setActiveTab] = useState('answer');
+const colorMap = {
+  indigo: "bg-indigo-50 border-indigo-100 text-indigo-700",
+  purple: "bg-purple-50 border-purple-100 text-purple-700",
+  emerald: "bg-emerald-50 border-emerald-100 text-emerald-700",
+  amber: "bg-amber-50 border-amber-100 text-amber-700",
+};
 
-  const current = PRESETS[selectedPreset];
+export default function Playground() {
+  const [selected, setSelected] = useState(0);
+  const [tab, setTab] = useState('answer');
+  const current = PRESETS[selected];
 
   return (
-    <section id="demo" className="py-24 bg-[#080c14] relative border-t border-slate-800/80">
+    <section id="demo" className="section-light py-24">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider">
-            <Terminal className="w-3.5 h-3.5" />
-            <span>Interactive Simulator</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            See ECIP Reasoning in Action
+        <div className="text-center max-w-2xl mx-auto space-y-4 mb-14">
+          <div className="section-badge mx-auto w-fit">Interactive Demo</div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+            See ECIP reasoning in action
           </h2>
-          <p className="text-slate-400 text-base sm:text-lg">
-            Test how ECIP processes repository questions, traverses AST call graphs, and validates citations.
+          <p className="text-gray-500 text-base sm:text-lg">
+            Test real query scenarios and inspect how ECIP retrieves, reasons, and cites answers.
           </p>
         </div>
 
         {/* Playground Container */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 rounded-2xl bg-[#0a0f1d] border border-cyan-500/30 overflow-hidden shadow-2xl shadow-cyan-500/10">
-          
-          {/* Preset Queries Sidebar */}
-          <div className="lg:col-span-4 bg-[#0d1324] p-6 border-b lg:border-b-0 lg:border-r border-slate-800 space-y-4">
-            <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Select Preset Scenario
-            </div>
+        <div className="card-float max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-12">
             
-            {PRESETS.map((p, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedPreset(idx)}
-                className={`w-full text-left p-3.5 rounded-xl border text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
-                  selectedPreset === idx
-                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 shadow-md'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                }`}
-              >
-                <span>{p.title}</span>
-                {selectedPreset === idx && <CheckCircle className="w-4 h-4 text-cyan-400" />}
-              </button>
-            ))}
-          </div>
+            {/* Preset Sidebar */}
+            <div className="md:col-span-4 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-100 p-5 space-y-2">
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Select Scenario</div>
+              {PRESETS.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setSelected(i); setTab('answer'); }}
+                  className={`w-full text-left p-3.5 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center justify-between ${
+                    selected === i
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  <span>{p.title}</span>
+                  {selected === i && <CheckCircle className="w-4 h-4 opacity-80" />}
+                </button>
+              ))}
+            </div>
 
-          {/* Output Window */}
-          <div className="lg:col-span-8 p-6 space-y-4 flex flex-col justify-between">
-            <div>
-              {/* Question Bar */}
-              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-cyan-300 flex items-center gap-2 mb-4">
-                <span className="text-purple-400 font-bold">Ask ECIP &gt;</span>
-                <span className="text-slate-200 font-semibold">{current.question}</span>
+            {/* Output Panel */}
+            <div className="md:col-span-8 p-5 space-y-4">
+              {/* Query Bar */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+                <span className="text-indigo-400 font-mono font-bold text-xs shrink-0">Ask ECIP &gt;</span>
+                <span className="text-gray-700 font-medium">{current.question}</span>
               </div>
 
-              {/* Output Tabs */}
-              <div className="flex items-center gap-2 border-b border-slate-800 pb-2 mb-4">
-                <button
-                  onClick={() => setActiveTab('answer')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'answer' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  LLM Answer
-                </button>
-                <button
-                  onClick={() => setActiveTab('ast')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'ast' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  AST & Call Graph
-                </button>
-                <button
-                  onClick={() => setActiveTab('citations')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'citations' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Citations ({current.citations.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('telemetry')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === 'telemetry' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Telemetry
-                </button>
+              {/* Tabs */}
+              <div className="flex items-center gap-1 border-b border-gray-100 pb-2">
+                {[['answer','Answer'],['ast','AST Graph'],['citations','Citations'],['telemetry','Telemetry']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTab(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      tab === key
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              {/* Display Output */}
-              <div className="bg-[#05080f] border border-slate-800 rounded-xl p-4 font-mono text-xs min-h-[220px] text-slate-300 leading-relaxed overflow-x-auto">
-                {activeTab === 'answer' && (
-                  <pre className="white-space-pre-wrap font-sans text-slate-300 text-xs sm:text-sm leading-relaxed">
-                    {current.answer}
-                  </pre>
+              {/* Content */}
+              <div className="border border-gray-100 rounded-xl bg-white p-4 min-h-[200px] overflow-x-auto text-sm shadow-sm">
+                {tab === 'answer' && (
+                  <pre className="whitespace-pre-wrap text-gray-700 text-sm leading-relaxed font-sans">{current.answer}</pre>
                 )}
-
-                {activeTab === 'ast' && (
-                  <pre className="text-purple-300 text-xs">{current.ast}</pre>
+                {tab === 'ast' && (
+                  <pre className="text-indigo-700 text-xs leading-relaxed font-mono">{current.ast}</pre>
                 )}
-
-                {activeTab === 'citations' && (
+                {tab === 'citations' && (
                   <div className="space-y-2">
                     {current.citations.map((c, i) => (
-                      <div key={i} className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-emerald-300 font-mono text-xs">
-                        {c}
+                      <div key={i} className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${colorMap[c.color]}`}>
+                        <span className="font-medium">📄 {c.file}</span>
+                        <span className="opacity-70">{c.tier}</span>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {activeTab === 'telemetry' && (
-                  <pre className="text-amber-300 text-xs">{current.telemetry}</pre>
+                {tab === 'telemetry' && (
+                  <pre className="text-gray-600 text-xs leading-relaxed font-mono">{current.telemetry}</pre>
                 )}
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
 
       </div>

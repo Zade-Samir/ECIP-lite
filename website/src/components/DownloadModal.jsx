@@ -1,86 +1,51 @@
 import React from 'react';
-import { X, Apple, Terminal } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export default function DownloadModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
-      <div className="bg-[#0c101b] border border-cyan-500/40 rounded-3xl max-w-3xl w-full p-8 relative shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-        
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-3xl max-w-3xl w-full p-8 relative shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto border border-gray-100"
+        onClick={e => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-rose-500/80 transition-all flex items-center justify-center cursor-pointer"
+          className="absolute top-6 right-6 w-8 h-8 rounded-full bg-gray-100 text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         <div>
-          <div className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider mb-1">RELEASE v1.2.0</div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Download ECIP Open Source</h2>
-          <p className="text-slate-400 text-sm mt-1">Select your operating system or deployment package.</p>
+          <div className="section-badge mb-3 w-fit">RELEASE v1.2.0</div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Download ECIP Open Source</h2>
+          <p className="text-gray-500 text-sm mt-1">Select your operating system or deployment method.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-3">
-            <div className="text-3xl">🍎</div>
-            <div className="font-bold text-white text-sm">macOS</div>
-            <div className="text-[11px] text-slate-400">Apple Silicon (M1/M2/M3/M4) & Intel</div>
+          {[
+            { emoji: "🍎", os: "macOS", desc: "Apple Silicon & Intel", label: "Source Install" },
+            { emoji: "🐧", os: "Linux", desc: "Ubuntu, Debian, Fedora, Arch", label: "Script Install" },
+            { emoji: "🪟", os: "Windows", desc: "Windows 11 / WSL2", label: "WSL Setup" },
+            { emoji: "🐳", os: "Docker", desc: "Containerized Server", label: "Pull Image" },
+          ].map((d, i) => (
             <a
+              key={i}
               href="https://github.com/Zade-Samir/ECIP-lite"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs shadow-md"
+              className="feature-card text-center space-y-3 no-underline block"
             >
-              Source Install
+              <div className="text-3xl">{d.emoji}</div>
+              <div className="font-bold text-gray-900 text-sm">{d.os}</div>
+              <div className="text-[11px] text-gray-400">{d.desc}</div>
+              <div className="btn-primary justify-center text-xs px-3 py-2 w-full">
+                {d.label}
+              </div>
             </a>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-3">
-            <div className="text-3xl">🐧</div>
-            <div className="font-bold text-white text-sm">Linux</div>
-            <div className="text-[11px] text-slate-400">Ubuntu, Debian, Fedora, Arch</div>
-            <a
-              href="https://github.com/Zade-Samir/ECIP-lite"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs shadow-md"
-            >
-              Script Install
-            </a>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-3">
-            <div className="text-3xl">🪟</div>
-            <div className="font-bold text-white text-sm">Windows</div>
-            <div className="text-[11px] text-slate-400">Windows 11 / WSL2</div>
-            <a
-              href="https://github.com/Zade-Samir/ECIP-lite"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs shadow-md"
-            >
-              WSL Setup
-            </a>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-3">
-            <div className="text-3xl">🐳</div>
-            <div className="font-bold text-white text-sm">Docker</div>
-            <div className="text-[11px] text-slate-400">Containerized Server</div>
-            <a
-              href="https://github.com/Zade-Samir/ECIP-lite"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs shadow-md"
-            >
-              Pull Image
-            </a>
-          </div>
-
+          ))}
         </div>
-
       </div>
     </div>
   );

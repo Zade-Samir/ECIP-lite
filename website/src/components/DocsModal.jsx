@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { X, BookOpen, Terminal, Code, Layers, FileCode } from 'lucide-react';
+import { X, BookOpen } from 'lucide-react';
 
-const DOC_PAGES = {
+const DOCS = {
   intro: {
-    title: "1. Getting Started with ECIP",
+    title: "Getting Started",
     content: (
-      <div className="space-y-4 text-slate-300 text-xs sm:text-sm leading-relaxed">
-        <p>ECIP (Enterprise Code Intelligence Platform) is an open-source, offline AI assistant designed to run 100% locally on developer workstations and enterprise server clusters.</p>
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-          <div className="font-bold text-white text-xs">System Prerequisites:</div>
-          <ul className="list-disc list-inside text-slate-400 space-y-1 text-xs">
+      <div className="space-y-4 text-gray-700 text-sm leading-relaxed">
+        <p>ECIP (Enterprise Code Intelligence Platform) is an open-source, offline AI assistant running 100% locally on developer workstations and enterprise server clusters.</p>
+        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+          <div className="font-semibold text-gray-800 text-xs uppercase tracking-wide">Prerequisites:</div>
+          <ul className="list-disc list-inside text-gray-600 space-y-1 text-xs">
             <li>Python 3.10+ installed</li>
-            <li>Ollama running locally (<code className="text-cyan-400">ollama serve</code>)</li>
+            <li>Ollama running locally (<code className="bg-gray-200 text-gray-700 px-1 rounded">ollama serve</code>)</li>
             <li>Minimum 8GB RAM (16GB recommended for 7B/14B models)</li>
           </ul>
         </div>
@@ -19,122 +19,91 @@ const DOC_PAGES = {
     )
   },
   arch: {
-    title: "2. System Architecture",
+    title: "System Architecture",
     content: (
-      <div className="space-y-4 text-slate-300 text-xs sm:text-sm leading-relaxed">
-        <p>ECIP separates code intelligence into two primary processing layers:</p>
-        <ul className="space-y-2">
-          <li className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-            <strong className="text-purple-400">Deterministic AST Layer:</strong> Parses class inheritance, method signatures, annotations, and dependency injection to build call graphs.
-          </li>
-          <li className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-            <strong className="text-cyan-400">Probabilistic Vector Layer:</strong> Uses FAISS and BM25 to find relevant code snippets based on natural language queries.
-          </li>
-        </ul>
+      <div className="space-y-4 text-gray-700 text-sm leading-relaxed">
+        <p>ECIP separates code intelligence into two processing layers:</p>
+        <div className="space-y-2">
+          <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+            <strong className="text-indigo-700">Deterministic AST Layer:</strong>
+            <span className="text-gray-600"> Parses class inheritance, method signatures, annotations, and dependency injection to build call graphs.</span>
+          </div>
+          <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
+            <strong className="text-purple-700">Probabilistic Vector Layer:</strong>
+            <span className="text-gray-600"> Uses FAISS and BM25 to find relevant code snippets from natural language queries.</span>
+          </div>
+        </div>
       </div>
     )
   },
   indexing: {
-    title: "3. Indexing Codebases",
+    title: "Indexing Codebases",
     content: (
-      <div className="space-y-4 text-slate-300 text-xs sm:text-sm leading-relaxed">
-        <p>To index a repository via REST API or CLI:</p>
-        <pre className="p-4 rounded-xl bg-[#04060a] border border-slate-800 font-mono text-xs text-cyan-300 overflow-x-auto">
-{`curl -X POST "http://localhost:8000/api/v1/index" \\
+      <div className="space-y-4 text-gray-700 text-sm leading-relaxed">
+        <p>To index a repository via REST API:</p>
+        <pre className="p-4 rounded-xl bg-gray-900 text-gray-200 text-xs overflow-x-auto">{`curl -X POST "http://localhost:8000/api/v1/index" \\
   -H "Content-Type: application/json" \\
-  -d '{"project_path": "/path/to/your/project"}'`}
-        </pre>
+  -d '{"project_path": "/path/to/your/project"}'`}</pre>
       </div>
     )
   },
   api: {
-    title: "4. REST API Reference",
+    title: "REST API Reference",
     content: (
-      <div className="space-y-3 text-slate-300 text-xs sm:text-sm leading-relaxed">
+      <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
         <p>ECIP exposes standard REST endpoints:</p>
-        <ul className="space-y-2 font-mono text-xs">
-          <li className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">
-            POST /api/v1/query — Submit questions & receive streamed answers
-          </li>
-          <li className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-purple-300">
-            POST /api/v1/index — Trigger background repository indexing
-          </li>
-          <li className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-emerald-300">
-            GET /api/v1/workspaces — List active registered projects
-          </li>
-        </ul>
+        <div className="space-y-2 font-mono text-xs">
+          <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700">POST /api/v1/query — Submit questions &amp; receive streamed answers</div>
+          <div className="p-2.5 rounded-lg bg-purple-50 border border-purple-100 text-purple-700">POST /api/v1/index — Trigger background repository indexing</div>
+          <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700">GET /api/v1/workspaces — List active registered projects</div>
+        </div>
       </div>
     )
   }
 };
 
 export default function DocsModal({ isOpen, onClose }) {
-  const [docKey, setDocKey] = useState('intro');
-
+  const [doc, setDoc] = useState('intro');
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4">
-      <div className="bg-[#0c101b] border border-cyan-500/40 rounded-3xl max-w-4xl w-full p-8 relative shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto">
-        
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-rose-500/80 transition-all flex items-center justify-center cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          
-          {/* Sidebar */}
-          <div className="md:col-span-4 space-y-2 border-b md:border-b-0 md:border-r border-slate-800 pb-4 md:pb-0 md:pr-4">
-            <div className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span>ECIP Docs</span>
-            </div>
-
-            <button
-              onClick={() => setDocKey('intro')}
-              className={`w-full text-left p-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                docKey === 'intro' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              1. Getting Started
-            </button>
-            <button
-              onClick={() => setDocKey('arch')}
-              className={`w-full text-left p-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                docKey === 'arch' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              2. Architecture
-            </button>
-            <button
-              onClick={() => setDocKey('indexing')}
-              className={`w-full text-left p-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                docKey === 'indexing' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              3. Indexing Codebases
-            </button>
-            <button
-              onClick={() => setDocKey('api')}
-              className={`w-full text-left p-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                docKey === 'api' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              4. REST API Reference
-            </button>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-3xl max-w-4xl w-full p-0 relative shadow-2xl max-h-[85vh] overflow-hidden border border-gray-100 flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 font-bold text-gray-900">
+            <BookOpen className="w-5 h-5 text-indigo-600" />
+            ECIP Documentation
           </div>
-
-          {/* Doc Content Area */}
-          <div className="md:col-span-8 space-y-4">
-            <h2 className="text-xl font-bold text-white">{DOC_PAGES[docKey].title}</h2>
-            {DOC_PAGES[docKey].content}
-          </div>
-
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-700 flex items-center justify-center cursor-pointer transition-all">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <div className="w-48 shrink-0 bg-gray-50 border-r border-gray-100 p-4 space-y-1">
+            {Object.entries(DOCS).map(([key, { title }]) => (
+              <button
+                key={key}
+                onClick={() => setDoc(key)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                  doc === key ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                {title}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <h2 className="text-xl font-extrabold text-gray-900 mb-5">{DOCS[doc].title}</h2>
+            {DOCS[doc].content}
+          </div>
+        </div>
       </div>
     </div>
   );

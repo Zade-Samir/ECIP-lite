@@ -20,14 +20,12 @@ export default function App() {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#06080d] text-slate-100 selection:bg-cyan-500 selection:text-black">
-      {/* Navbar */}
+    <div className="min-h-screen bg-white text-gray-900">
       <Navbar
         onOpenDownload={() => setIsDownloadOpen(true)}
         onOpenDocs={() => setIsDocsOpen(true)}
       />
 
-      {/* Main Sections */}
       <main>
         <Hero
           onOpenDownload={() => setIsDownloadOpen(true)}
@@ -45,22 +43,13 @@ export default function App() {
         <Faq />
       </main>
 
-      {/* Footer */}
       <Footer
         onOpenDownload={() => setIsDownloadOpen(true)}
         onOpenDocs={() => setIsDocsOpen(true)}
       />
 
-      {/* Modals */}
-      <DownloadModal
-        isOpen={isDownloadOpen}
-        onClose={() => setIsDownloadOpen(false)}
-      />
-      
-      <DocsModal
-        isOpen={isDocsOpen}
-        onClose={() => setIsDocsOpen(false)}
-      />
+      <DownloadModal isOpen={isDownloadOpen} onClose={() => setIsDownloadOpen(false)} />
+      <DocsModal isOpen={isDocsOpen} onClose={() => setIsDocsOpen(false)} />
     </div>
   );
 }

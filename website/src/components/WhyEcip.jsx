@@ -1,71 +1,66 @@
 import React from 'react';
-import { ShieldAlert, ShieldCheck, ArrowRight, Lock, Server, CloudOff } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CloudOff, Lock } from 'lucide-react';
 
 export default function WhyEcip() {
   return (
-    <section id="why-ecip" className="py-24 bg-[#06080d] relative">
+    <section id="why-ecip" className="section-light py-24">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+
+        {/* Section Header */}
+        <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
+          <div className="section-badge mx-auto w-fit">
             <Lock className="w-3.5 h-3.5" />
-            <span>Data Sovereignty & Privacy</span>
+            Data Sovereignty & Privacy
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
             Your codebase is private.{' '}
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              Your AI should be too.
-            </span>
+            <span className="text-indigo-600">Your AI should be too.</span>
           </h2>
-          <p className="text-slate-400 text-base sm:text-lg">
-            Compare traditional cloud-hosted AI coding assistants against ECIP's local-first architecture.
+          <p className="text-gray-500 text-base sm:text-lg">
+            Traditional cloud AI coding assistants send your source code to external servers. ECIP runs entirely on your machine.
           </p>
         </div>
 
-        {/* Side by Side Cards */}
+        {/* Side-by-Side Comparison Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* Cloud Card */}
-          <div className="rounded-2xl bg-rose-950/10 border border-rose-500/20 p-8 relative overflow-hidden space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold uppercase tracking-wider">
-              <CloudOff className="w-4 h-4" />
-              <span>Typical Cloud AI Assistant</span>
+          {/* Cloud Card — Bad */}
+          <div className="rounded-2xl border border-red-200 bg-red-50/50 p-8 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-wide">
+              <CloudOff className="w-3.5 h-3.5" />
+              Typical Cloud AI Assistants
             </div>
-
-            <h3 className="text-2xl font-bold text-white">Source Code Leaves Your Premises</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Proprietary algorithms, database passwords, and domain logic are serialized and sent over the internet to cloud APIs. Enterprise IP is vulnerable to cloud vendor retention policies.
+            <h3 className="text-xl font-bold text-gray-900">Your source code leaves your premises</h3>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Proprietary algorithms, API credentials, and domain logic are serialized and sent over the internet to external cloud APIs. Your intellectual property is at risk.
             </p>
-
-            {/* Visual Flow Diagram */}
-            <div className="p-4 rounded-xl bg-[#080c14] border border-slate-800 font-mono text-xs text-slate-300 flex items-center justify-between gap-2 overflow-x-auto">
-              <span className="px-2.5 py-1 rounded bg-slate-800 text-slate-300">Local Code</span>
-              <ArrowRight className="w-4 h-4 text-rose-500 shrink-0" />
-              <span className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/40 text-rose-300 shrink-0">Public Internet</span>
-              <ArrowRight className="w-4 h-4 text-rose-500 shrink-0" />
-              <span className="px-2.5 py-1 rounded bg-rose-950/80 border border-rose-500/40 text-rose-300 shrink-0">Cloud LLM</span>
+            {/* Visual Flow */}
+            <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
+              <span className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700">Local Code</span>
+              <ArrowRight className="w-4 h-4 text-red-400 shrink-0" />
+              <span className="px-3 py-1.5 rounded-lg bg-red-100 border border-red-200 text-red-600">Public Internet</span>
+              <ArrowRight className="w-4 h-4 text-red-400 shrink-0" />
+              <span className="px-3 py-1.5 rounded-lg bg-red-100 border border-red-200 text-red-600">Cloud LLM API</span>
             </div>
           </div>
 
-          {/* ECIP Card */}
-          <div className="rounded-2xl bg-emerald-950/10 border border-emerald-500/30 p-8 relative overflow-hidden space-y-6 shadow-xl shadow-emerald-500/5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" />
-              <span>ECIP Local Platform</span>
+          {/* ECIP Card — Good */}
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-8 space-y-5 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold uppercase tracking-wide">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              ECIP Local Platform
             </div>
-
-            <h3 className="text-2xl font-bold text-white">100% On-Premise Air-Gapped Intelligence</h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Repository parsing, vector embeddings, BM25 indexing, AST graph building, and LLM inference run strictly on your hardware. Zero network telemetry.
+            <h3 className="text-xl font-bold text-gray-900">100% on-premise, air-gapped intelligence</h3>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Repository parsing, vector embedding, BM25 indexing, AST graph building, and LLM inference run entirely on your hardware. Zero network telemetry.
             </p>
-
-            {/* Visual Flow Diagram */}
-            <div className="p-4 rounded-xl bg-[#080c14] border border-emerald-500/40 font-mono text-xs text-emerald-300 flex items-center justify-between gap-2 overflow-x-auto">
-              <span className="px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 shrink-0">Local Repo</span>
-              <ArrowRight className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 shrink-0">Local FAISS + AST</span>
-              <ArrowRight className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 shrink-0">Local Ollama LLM</span>
+            {/* Visual Flow */}
+            <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
+              <span className="px-3 py-1.5 rounded-lg bg-indigo-100 border border-indigo-200 text-indigo-700">Local Repo</span>
+              <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span className="px-3 py-1.5 rounded-lg bg-indigo-100 border border-indigo-200 text-indigo-700">FAISS + AST</span>
+              <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span className="px-3 py-1.5 rounded-lg bg-indigo-100 border border-indigo-200 text-indigo-700">Local Ollama</span>
             </div>
           </div>
 

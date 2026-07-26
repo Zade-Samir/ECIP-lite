@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Lock } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 function GithubIcon({ className = "w-4 h-4" }) {
   return (
@@ -11,84 +11,89 @@ function GithubIcon({ className = "w-4 h-4" }) {
 
 export default function Footer({ onOpenDownload, onOpenDocs }) {
   return (
-    <footer className="bg-[#04060a] border-t border-slate-800/80 pt-20 pb-12">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-16">
-        
-        {/* Call To Action Banner */}
-        <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-r from-slate-900 via-[#0a0f1d] to-slate-900 border border-cyan-500/30 text-center max-w-4xl mx-auto space-y-6 shadow-2xl">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Your codebase. Your machine. Your intelligence.
+    <footer className="section-dark">
+      {/* CTA Banner */}
+      <div className="border-b border-white/10">
+        <div className="max-w-5xl mx-auto px-4 lg:px-8 py-20 text-center space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Your codebase. Your machine.{' '}
+            <span className="text-indigo-400">Your intelligence.</span>
           </h2>
-          <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
-            Run AI-powered code intelligence on your repository without sending your source code anywhere.
+          <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto">
+            Start using AI-powered code intelligence without sending your source code anywhere.
           </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap pt-2">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <button
               onClick={onOpenDownload}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 hover:scale-[1.02] transition-all cursor-pointer"
+              className="btn-primary text-base"
             >
-              Download ECIP Open Source
+              <Download className="w-4 h-4" />
+              Download ECIP — Free
             </button>
             <a
               href="https://github.com/Zade-Samir/ECIP-lite"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-sm hover:bg-slate-700 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 border border-white/20 text-white font-semibold text-sm hover:bg-white/15 transition-all"
             >
               <GithubIcon className="w-4 h-4" />
-              <span>View on GitHub</span>
+              View on GitHub
             </a>
           </div>
         </div>
+      </div>
 
-        {/* Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-xs sm:text-sm">
+      {/* Links Grid */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div className="space-y-4">
-            <div className="flex items-center gap-2 font-extrabold text-lg text-white">
-              <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400">⚡</span>
-              <span>ECIP.dev</span>
+            <div className="flex items-center gap-2 font-extrabold text-xl text-white">
+              <span className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-lg">⚡</span>
+              <span>ECIP</span>
             </div>
-            <p className="text-slate-400 text-xs leading-relaxed">
-              Enterprise Code Intelligence Platform — 100% offline, privacy-first AI code intelligence engine.
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Enterprise Code Intelligence Platform. 100% offline, privacy-first AI for enterprise codebases.
             </p>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              MIT Open Source License
+            </div>
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-3">Product</h4>
-            <ul className="space-y-2 text-slate-400">
-              <li><a href="#why-ecip" className="hover:text-cyan-400">Why ECIP</a></li>
-              <li><a href="#features" className="hover:text-cyan-400">Capabilities</a></li>
-              <li><a href="#demo" className="hover:text-cyan-400">Interactive Demo</a></li>
-              <li><a href="#architecture" className="hover:text-cyan-400">Architecture</a></li>
+            <h4 className="font-bold text-white text-sm mb-4">Product</h4>
+            <ul className="space-y-2.5 text-sm text-gray-400">
+              <li><a href="#why-ecip" className="hover:text-white transition-colors">Why ECIP</a></li>
+              <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
+              <li><a href="#demo" className="hover:text-white transition-colors">Interactive Demo</a></li>
+              <li><a href="#architecture" className="hover:text-white transition-colors">Architecture</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-3">Resources</h4>
-            <ul className="space-y-2 text-slate-400">
-              <li><button onClick={onOpenDocs} className="hover:text-cyan-400 cursor-pointer">Documentation</button></li>
-              <li><a href="#quickstart" className="hover:text-cyan-400">Quick Start</a></li>
-              <li><a href="#roadmap" className="hover:text-cyan-400">Roadmap</a></li>
-              <li><a href="#faq" className="hover:text-cyan-400">FAQ</a></li>
+            <h4 className="font-bold text-white text-sm mb-4">Resources</h4>
+            <ul className="space-y-2.5 text-sm text-gray-400">
+              <li><button onClick={onOpenDocs} className="hover:text-white transition-colors cursor-pointer">Documentation</button></li>
+              <li><a href="#quickstart" className="hover:text-white transition-colors">Quick Start</a></li>
+              <li><a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a></li>
+              <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-3">Community</h4>
-            <ul className="space-y-2 text-slate-400">
-              <li><a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" rel="noreferrer" className="hover:text-cyan-400">GitHub Repo</a></li>
-              <li><a href="https://github.com/Zade-Samir/ECIP-lite/issues" target="_blank" rel="noreferrer" className="hover:text-cyan-400">Report Bug</a></li>
-              <li><a href="https://github.com/Zade-Samir/ECIP-lite/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer" className="hover:text-cyan-400">Contributing</a></li>
-              <li><a href="https://github.com/Zade-Samir/ECIP-lite/blob/main/LICENSE" target="_blank" rel="noreferrer" className="hover:text-cyan-400">MIT License</a></li>
+            <h4 className="font-bold text-white text-sm mb-4">Community</h4>
+            <ul className="space-y-2.5 text-sm text-gray-400">
+              <li><a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub Repository</a></li>
+              <li><a href="https://github.com/Zade-Samir/ECIP-lite/issues" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Report a Bug</a></li>
+              <li><a href="https://github.com/Zade-Samir/ECIP-lite/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Contributing Guide</a></li>
+              <li><a href="https://github.com/Zade-Samir/ECIP-lite/blob/main/LICENSE" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">MIT License</a></li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Copyright */}
-        <div className="pt-8 border-t border-slate-800/80 text-center text-xs text-slate-500">
+        <div className="mt-16 pt-8 border-t border-white/10 text-center text-xs text-gray-500">
           &copy; 2026 Enterprise Code Intelligence Platform (ECIP). Open Source MIT License.
         </div>
-
       </div>
     </footer>
   );

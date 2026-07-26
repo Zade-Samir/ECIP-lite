@@ -1,51 +1,24 @@
 import React from 'react';
-import { Activity, Zap, Cpu, Database, Shield, GitBranch } from 'lucide-react';
+
+const METRICS = [
+  { value: "14,200", unit: "LOC/sec", label: "Indexing Speed", color: "text-indigo-600" },
+  { value: "< 18", unit: "ms", label: "Retrieval Latency", color: "text-indigo-600" },
+  { value: "100%", unit: "Air-Gapped", label: "Privacy Guarantee", color: "text-emerald-600" },
+  { value: "99.4%", unit: "Accuracy", label: "AST Symbol Mapping", color: "text-indigo-600" },
+];
 
 export default function MetricsTicker() {
-  const metrics = [
-    {
-      icon: <Zap className="w-5 h-5 text-cyan-400" />,
-      label: "INDEXING SPEED",
-      value: "14,200 LOC/sec",
-      sub: "SHA-256 Incremental Check"
-    },
-    {
-      icon: <Activity className="w-5 h-5 text-purple-400" />,
-      label: "RETRIEVAL LATENCY",
-      value: "< 18 ms",
-      sub: "FAISS Vector + BM25 Fusion"
-    },
-    {
-      icon: <Shield className="w-5 h-5 text-emerald-400" />,
-      label: "PRIVACY RATING",
-      value: "100% Air-Gapped",
-      sub: "Zero External Egress"
-    },
-    {
-      icon: <GitBranch className="w-5 h-5 text-amber-400" />,
-      label: "AST ACCURACY",
-      value: "99.4% Symbol Mapping",
-      sub: "Caller / Callee Edge Graph"
-    }
-  ];
-
   return (
-    <section className="border-y border-slate-800/80 bg-[#070b12] py-8">
+    <section className="section-gray border-y border-gray-200 py-12">
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {metrics.map((m, idx) => (
-            <div
-              key={idx}
-              className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center gap-4 hover:border-slate-700 transition-all"
-            >
-              <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700/50">
-                {m.icon}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+          {METRICS.map((m, idx) => (
+            <div key={idx} className={`${idx > 0 ? 'pt-8 lg:pt-0 lg:pl-8' : ''} text-center lg:text-left`}>
+              <div className={`text-3xl sm:text-4xl font-extrabold tracking-tight ${m.color}`}>
+                {m.value}
+                <span className="text-base sm:text-lg font-semibold ml-1 text-gray-500">{m.unit}</span>
               </div>
-              <div>
-                <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">{m.label}</div>
-                <div className="text-lg font-extrabold text-white tracking-tight">{m.value}</div>
-                <div className="text-[11px] text-slate-400">{m.sub}</div>
-              </div>
+              <div className="mt-1 text-sm text-gray-500 font-medium">{m.label}</div>
             </div>
           ))}
         </div>
