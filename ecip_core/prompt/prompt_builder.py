@@ -1,8 +1,9 @@
 import re
+from typing import Optional
 from ecip_core.common.logger import get_logger
 from ecip_core.retrieval.context.models.context import Context
 from ecip_core.prompt.models.prompt import Prompt
-from ecip_core.inference.config.settings import settings
+from ecip_core.config.loader import settings
 
 logger = get_logger(__name__)
 
@@ -25,7 +26,6 @@ class PromptBuilder:
         Builds a grounded prompt. If context is a Context object, returns a typed Prompt.
         Otherwise, returns a legacy formatted string.
         """
-        from typing import Optional
         history_str = ""
         if history:
             # Keep last 6 messages (3 turns) to manage context bloat

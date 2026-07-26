@@ -98,7 +98,8 @@ Methods:
 
                 overview_content = []
                 for chunk in chunks:
-                    if chunk.chunk_type == "class" or chunk.chunk_type == "file":
+                    ctype = (chunk.chunk_type or "").upper()
+                    if ctype in ("CLASS", "FILE", "CLASS_OVERVIEW", "SQL_OVERVIEW", "CONFIG", "GIT_HISTORY") or "OVERVIEW" in ctype:
                         class_overview_found = True
                         overview_content.append(chunk.content)
                         citations.append(chunk)
@@ -118,10 +119,11 @@ Methods:
 
                 class_methods = []
                 for chunk in chunks:
-                    if chunk.chunk_type == "method":
-                        class_methods.append(f"Method {chunk.method_name}:\n{chunk.content}\n")
+                    ctype = (chunk.chunk_type or "").upper()
+                    if ctype == "METHOD" or chunk.method_name:
+                        class_methods.append(f"Method {chunk.method_name or 'unnamed'}:\n{chunk.content}\n")
                         citations.append(chunk)
-                    elif chunk.chunk_type not in ("class", "file"):
+                    elif ctype not in ("CLASS", "FILE", "CLASS_OVERVIEW", "SQL_OVERVIEW", "CONFIG", "GIT_HISTORY") and "OVERVIEW" not in ctype:
                         supporting_chunks.append(chunk)
 
                 if class_methods:

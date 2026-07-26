@@ -25,6 +25,7 @@ class HybridRetrievalEngine:
         self.semantic_search = semantic_search_service
         self.bm25_weight = bm25_weight
         self.vector_weight = vector_weight
+        self._bm25_cache = {}  # (project_id, mtime) -> BM25Index
         from ecip_core.reranking.cross_encoder import CrossEncoderReRanker
         self.reranker = CrossEncoderReRanker()
 
@@ -48,10 +49,17 @@ class HybridRetrievalEngine:
         # 2. Execute BM25 search
         bm25_hits = []
         try:
-            bm25_index = BM25Index()
             bm25_path = Path(workspace["root_path"]) / ".ecip" / "bm25_index.json"
             if bm25_path.exists():
-                bm25_index.load(str(bm25_path))
+                mtime = bm25_path.stat().st_mtime
+                cache_key = (project_id, mtime)
+                if cache_key in self._bm25_cache:
+                    bm25_index = self._bm25_cache[cache_key]
+                else:
+                    bm25_index = BM25Index()
+                    bm25_index.load(str(bm25_path))
+                    self._bm25_cache = {cache_key: bm25_index}
+
                 bm25_hits = bm25_index.search(query, k=k * 2)
                 logger.info("BM25 search completed")
             else:

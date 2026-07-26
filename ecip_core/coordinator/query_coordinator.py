@@ -48,7 +48,7 @@ from ecip_core.embedding.embedding_service import EmbeddingService
 from ecip_core.inference.inference_service import InferenceService
 from ecip_core.query.intent_analyzer import IntentAnalyzer
 from ecip_core.query.entity_extractor import EntityExtractor
-from ecip_core.inference.config.settings import settings
+from ecip_core.config.loader import settings
 
 logger = get_logger(__name__)
 
@@ -65,6 +65,7 @@ class QueryCoordinator:
 
             # Initialize search & retrieval
             self.repository = JavaRepository()
+            self._loaded_project_id = None
 
             from ecip_core.workspace.manager import workspace_manager
             from pathlib import Path
@@ -82,6 +83,7 @@ class QueryCoordinator:
                 index_path=index_path,
                 metadata_path=metadata_path
             )
+            self._loaded_project_id = active_project
             self.metadata_service = MetadataSearchService(
                 repository=self.repository,
                 faiss_store=self.faiss_store
@@ -123,25 +125,27 @@ class QueryCoordinator:
         from ecip_core.metrics import metrics_collector
         metrics_collector.start_timer("total_request_duration")
         try:
-            # Resolve project and dynamically reload FAISS store
+            # Resolve project and dynamically reload FAISS store if workspace changed
             project_id = getattr(request, "project_id", "default") or "default"
             from ecip_core.workspace.manager import workspace_manager
             from ecip_core.vectorstore.faiss_store import FAISSStore
             from pathlib import Path
 
             workspace_manager.set_active_workspace(project_id)
-            workspace = workspace_manager.get_workspace(project_id)
-            if workspace:
-                root_path = workspace["root_path"]
-                index_path = str(Path(root_path) / ".ecip" / "faiss.index")
-                metadata_path = str(Path(root_path) / ".ecip" / "faiss_metadata.json")
-            else:
-                index_path = settings.FAISS_INDEX_PATH
-                metadata_path = settings.FAISS_METADATA_PATH
+            if self._loaded_project_id != project_id:
+                workspace = workspace_manager.get_workspace(project_id)
+                if workspace:
+                    root_path = workspace["root_path"]
+                    index_path = str(Path(root_path) / ".ecip" / "faiss.index")
+                    metadata_path = str(Path(root_path) / ".ecip" / "faiss_metadata.json")
+                else:
+                    index_path = settings.FAISS_INDEX_PATH
+                    metadata_path = settings.FAISS_METADATA_PATH
 
-            self.faiss_store = FAISSStore(index_path=index_path, metadata_path=metadata_path)
-            self.semantic_search.faiss_store = self.faiss_store
-            self.metadata_service.faiss_store = self.faiss_store
+                self.faiss_store = FAISSStore(index_path=index_path, metadata_path=metadata_path)
+                self.semantic_search.faiss_store = self.faiss_store
+                self.metadata_service.faiss_store = self.faiss_store
+                self._loaded_project_id = project_id
 
             # 1. Normalize request
             question = request.question.strip() if request.question else ""
@@ -274,9 +278,20 @@ class QueryCoordinator:
                 # Build Context
                 try:
                     metrics_collector.start_timer("context_building_duration")
-                    context = self.context_builder.build(question)
+                    context = self.context_builder.build(
+                        question,
+                        retrieved_results=retrieved_results,
+                        project_id=project_id
+                    )
                     metrics_collector.stop_timer("context_building_duration")
-                    if not context.strip():
+                    
+                    is_empty = False
+                    if isinstance(context, str):
+                        is_empty = not context.strip()
+                    else:
+                        is_empty = not (context.class_context or context.method_context or context.dependency_context or context.supporting_chunks)
+
+                    if is_empty:
                         if retrieved_results:
                             context_parts = ["Project Context:"]
                             for r in retrieved_results:

@@ -219,7 +219,8 @@ class JavaRepository:
             SELECT
                 file_name,
                 package_name,
-                class_name
+                class_name,
+                file_path
             FROM java_files
         """)
 
@@ -229,7 +230,8 @@ class JavaRepository:
             {
                 "file_name": row[0],
                 "package_name": row[1],
-                "class_name": row[2]
+                "class_name": row[2],
+                "file_path": row[3]
             }
             for row in rows
         ]
@@ -523,18 +525,29 @@ class JavaRepository:
 
     def delete_project(self, project_id: str):
         try:
-            # First clean active connection metadata (if it matches the project being deleted)
-            cursor = self.connection.cursor()
-            cursor.execute("DELETE FROM java_methods")
-            cursor.execute("DELETE FROM java_files")
-            cursor.execute("DELETE FROM dependency_edges")
-            self.connection.commit()
+            import os
+            from pathlib import Path
 
             # Clean registry metadata
             conn = Database.get_registry_connection()
             cursor = conn.cursor()
             cursor.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
             conn.commit()
+
+            # Clean workspace database file if non-default
+            if project_id != "default":
+                db_path = Path(f"data/ecip_{project_id}.db")
+                if db_path.exists():
+                    try:
+                        os.remove(db_path)
+                    except Exception as remove_err:
+                        logger.warning(f"Could not remove DB file {db_path}: {remove_err}")
+            else:
+                cursor = self.connection.cursor()
+                cursor.execute("DELETE FROM java_methods")
+                cursor.execute("DELETE FROM java_files")
+                cursor.execute("DELETE FROM dependency_edges WHERE project_id = 'default'")
+                self.connection.commit()
 
             # Delegate graph deletion to active provider
             from ecip_core.graph.factory import get_graph_provider
