@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECIP — Enterprise Code Intelligence Platform (100% Local & Private)</title>
-  <meta name="description" content="Open-source, offline AI-powered code intelligence platform. Understand your entire repository locally with zero cloud code exposure.">
+  <title>ECIP Visual — Understand Enterprise Codebases Frame by Frame (100% Local)</title>
+  <meta name="description" content="Visual, offline AI code intelligence platform. Step through repository AST graphs, hybrid vector search, and local LLM reasoning. 100% private.">
   
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="styles.css">
@@ -16,17 +16,16 @@
     <div class="container nav-container">
       <a href="#" class="brand-logo">
         <div class="logo-icon">⚡</div>
-        <span>ECIP<span style="color: var(--accent-cyan);">.dev</span></span>
+        <span>ECIP <span style="color: var(--accent-cyan);">Visual</span></span>
       </a>
 
       <ul class="nav-links">
-        <li><a href="#why-ecip" class="nav-link">Why ECIP</a></li>
-        <li><a href="#features" class="nav-link">Features</a></li>
-        <li><a href="#demo" class="nav-link">Demo</a></li>
-        <li><a href="#how-it-works" class="nav-link">Architecture</a></li>
+        <li><a href="#hero" class="nav-link">Visualizer</a></li>
+        <li><a href="#approaches" class="nav-link">Approach Leap</a></li>
+        <li><a href="#tracks" class="nav-link">Tracks</a></li>
+        <li><a href="#planner" class="nav-link">Indexing Planner</a></li>
         <li><a href="#privacy" class="nav-link">Privacy</a></li>
         <li><a href="javascript:void(0)" onclick="openDocsModal()" class="nav-link">Docs</a></li>
-        <li><a href="#roadmap" class="nav-link">Roadmap</a></li>
         <li><a href="#faq" class="nav-link">FAQ</a></li>
       </ul>
 
@@ -41,61 +40,66 @@
     </div>
   </nav>
 
-  <!-- Hero Section -->
-  <section class="hero">
+  <!-- Hero Section: Watch Code Intelligence Think -->
+  <section id="hero" class="hero">
     <div class="container hero-grid">
       <div class="hero-content">
-        <div class="hero-pill">
-          <span class="hero-pill-dot"></span>
-          <span>100% Offline & Local Code Intelligence Platform</span>
-        </div>
-        <h1 class="hero-title">Understand your entire codebase. <span class="gradient-text">Locally. Privately.</span></h1>
+        <div class="hero-tag">Watch the code intelligence think</div>
+        <h1 class="hero-title">Repository intelligence you can <span class="gradient-text">see</span>.</h1>
         <p class="hero-description">
-          An open-source, offline AI code intelligence engine that parses your repository structure, builds AST dependency graphs, and delivers context-aware answers without sending a single byte of code to the cloud.
+          Every pattern, stepped through one frame at a time — pointers traversing AST trees, vector embeddings matching FAISS clusters, and local LLMs citing exact code lines.
         </p>
         <div class="hero-cta-group">
           <button class="btn btn-primary" onclick="openDownloadModal()">
-            ⚡ Download ECIP v1.2.0
+            ⚡ Start with ECIP Open Source →
           </button>
-          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-secondary">
-            View Source on GitHub
+          <a href="#tracks" class="btn btn-secondary">
+            Explore Intelligence Tracks
           </a>
-          <button class="btn btn-secondary" onclick="openDocsModal()">
-            📖 Read Docs
-          </button>
         </div>
       </div>
 
-      <!-- Interactive Hero IDE Widget -->
-      <div class="ide-widget">
-        <div class="ide-header">
-          <div class="window-dots">
-            <span class="dot red"></span>
-            <span class="dot yellow"></span>
-            <span class="dot green"></span>
+      <!-- Live Interactive Step-Through Visualizer (Chaicode Style) -->
+      <div class="hero-visual-box">
+        <span class="live-badge">LIVE STEPPER</span>
+        <div class="visual-top-bar">
+          <div class="visual-window-controls">
+            <span class="visual-window-dot" style="background:#ff5f56"></span>
+            <span class="visual-window-dot" style="background:#ffbd2e"></span>
+            <span class="visual-window-dot" style="background:#27c93f"></span>
           </div>
-          <div class="ide-title">ECIP Interactive Query Engine v1.2</div>
-          <div style="font-size: 0.75rem; color: var(--accent-emerald);">● LOCAL OLLAMA READY</div>
+          <div class="visual-topic-title">query: auth_flow · target: AuthController.java</div>
         </div>
-        <div class="ide-body">
-          <div class="query-input-bar">
-            <span class="query-prompt-symbol">Ask ECIP &gt;</span>
-            <span id="hero-query-text">How does authentication & token validation work in this project?</span>
-          </div>
-          <div class="response-stream" id="hero-response-box">
-            <div style="color: var(--text-dim); margin-bottom: 12px;">[Intent: qa_explain | Extracted Entities: AuthController, TokenService]</div>
-            <div>The authentication flow uses JSON Web Tokens (JWT) processed in 3 steps:</div>
-            <br>
-            <div>1. <strong>AuthController.java</strong> intercepts <code>POST /api/v1/auth/login</code> and validates user credentials via <code>UserService.authenticate()</code>.</div>
-            <div>2. <strong>JwtProvider.java</strong> generates a signed JWT payload including user roles and expiration claims.</div>
-            <div>3. <strong>SecurityFilter.java</strong> intercepts incoming bearer tokens and validates signature using <code>TokenValidationService</code>.</div>
 
-            <div style="margin-top: 16px;">
-              <span class="citation-chip">📄 AuthController.java:L45-L78</span>
-              <span class="citation-chip">📄 JwtProvider.java:L102-L134</span>
-              <span class="citation-chip">🔗 AST Graph: Controller ➔ Service ➔ Repository</span>
-            </div>
+        <!-- Chunks Array Step Visualizer -->
+        <div class="chunk-node-array" id="hero-chunk-array">
+          <div class="chunk-box active" id="chunk-0">Auth</div>
+          <div class="chunk-box" id="chunk-1">User</div>
+          <div class="chunk-box" id="chunk-2">JWT</div>
+          <div class="chunk-box" id="chunk-3">Filter</div>
+          <div class="chunk-box" id="chunk-4">Repo</div>
+        </div>
+
+        <!-- Pointers (AST Pointer L vs Vector Pointer R) -->
+        <div class="pointer-indicator">
+          <div class="pointer-arrow cyan" id="pointer-ast" style="left: 10%;">
+            <span>▲</span>
+            <span style="font-weight:700;">AST</span>
           </div>
+          <div class="pointer-arrow purple" id="pointer-vector" style="left: 80%;">
+            <span>▲</span>
+            <span style="font-weight:700;">VEC</span>
+          </div>
+        </div>
+
+        <div class="execution-step-text" id="hero-step-description">
+          Step 1: AST Parser extracts Controller ➔ Service dependency edge.
+        </div>
+
+        <div class="execution-controls">
+          <button class="step-btn" onclick="stepVisualizer(-1)">◀ Prev Step</button>
+          <button class="step-btn" style="color:var(--accent-cyan); border-color:var(--accent-cyan);" onclick="togglePlayVisualizer()" id="play-btn">❚❚ Pause</button>
+          <button class="step-btn" onclick="stepVisualizer(1)">Next Step ▶</button>
         </div>
       </div>
     </div>
@@ -105,244 +109,276 @@
   <section class="trust-strip">
     <div class="container trust-items">
       <div class="trust-item"><span class="trust-icon">🔒</span> 100% Local Execution</div>
-      <div class="trust-item"><span class="trust-icon">⚡</span> Zero Cloud Exposure</div>
-      <div class="trust-item"><span class="trust-icon">📖</span> AST + Call Graph Grounded</div>
+      <div class="trust-item"><span class="trust-icon">⚡</span> Zero Cloud Egress</div>
+      <div class="trust-item"><span class="trust-icon">🌳</span> AST + Call Graph Grounded</div>
       <div class="trust-item"><span class="trust-icon">🌐</span> Open Source (MIT)</div>
-      <div class="trust-item"><span class="trust-icon">🧠</span> Ollama & GGUF Support</div>
+      <div class="trust-item"><span class="trust-icon">🦙</span> Ollama & GGUF Ready</div>
     </div>
   </section>
 
-  <!-- Section: Why ECIP? -->
-  <section id="why-ecip" class="section">
+  <!-- Approach Leap: Naive RAG vs ECIP AST Graph (Chaicode Style) -->
+  <section id="approaches" class="section" style="background: rgba(15, 23, 42, 0.3);">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag emerald">Privacy & Architecture</div>
-        <h2 class="section-title">Your codebase is private. <span class="gradient-text-emerald">Your AI should be too.</span></h2>
-        <p class="section-subtitle">Why compromise enterprise code privacy for AI assistance? Contrast traditional cloud models with ECIP's local sovereignty.</p>
+        <div class="section-tag purple">Naive RAG ➔ ECIP Graph</div>
+        <h2 class="section-title">Never stop at the <span class="gradient-text">naive</span> RAG answer.</h2>
+        <p class="section-subtitle">
+          Every architecture carries its approaches side by side — naive text chunking vs. deterministic AST symbol graph retrieval. Jump between them and watch time complexity and hallucination drop.
+        </p>
       </div>
 
-      <div class="comparison-grid">
-        <div class="comp-card cloud">
-          <span class="comp-badge cloud">Traditional Cloud AI Assistants</span>
-          <h3 style="font-size: 1.5rem; margin-bottom: 12px;">Data Egress & Cloud Risks</h3>
-          <p style="color: var(--text-muted);">Source code is transmitted to external API endpoints, exposing proprietary logic, API keys, and enterprise IP to vendor training pipelines.</p>
-
-          <div class="flow-diagram">
-            <div class="flow-node">Local Code</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node" style="color: var(--accent-rose);">Internet</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node" style="color: var(--accent-rose);">Cloud AI Provider</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node">Response</div>
-          </div>
-        </div>
-
-        <div class="comp-card ecip">
-          <span class="comp-badge ecip">ECIP Local Platform</span>
-          <h3 style="font-size: 1.5rem; margin-bottom: 12px;">Complete On-Premise Sovereignty</h3>
-          <p style="color: var(--text-muted);">Parsing, vector embeddings, BM25 indexing, AST graph building, and LLM inference run strictly on your local hardware.</p>
-
-          <div class="flow-diagram">
-            <div class="flow-node highlight">Local Repository</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node highlight">Local FAISS + AST</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node highlight">Local Ollama LLM</div>
-            <span class="flow-arrow">➔</span>
-            <div class="flow-node highlight">Local Response</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features Section -->
-  <section id="features" class="section" style="background: rgba(15, 23, 42, 0.3);">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag purple">Capabilities</div>
-        <h2 class="section-title">Engineered for Enterprise Codebases</h2>
-        <p class="section-subtitle">Advanced code intelligence designed to navigate and understand complex multi-module repositories.</p>
-      </div>
-
-      <div class="features-grid">
-        <div class="glass-card">
-          <div class="feature-icon cyan">🧠</div>
-          <h3 class="feature-title">Repository Intelligence</h3>
-          <p class="feature-desc">Understands multi-file relationships, inheritance trees, and module architecture instead of isolating single file snippets.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon purple">⚡</div>
-          <h3 class="feature-title">Hybrid Vector + Lexical Search</h3>
-          <p class="feature-desc">Combines dense vector similarity (FAISS) with exact symbol matching (BM25) for high-precision retrieval.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon emerald">🌳</div>
-          <h3 class="feature-title">AST & Dependency Graphs</h3>
-          <p class="feature-desc">Parses Abstract Syntax Trees to map caller/callee method links, class inheritance, and dependency injection.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon amber">🦙</div>
-          <h3 class="feature-title">Local LLM Integration</h3>
-          <p class="feature-desc">Native support for Ollama, Qwen 2.5, Llama 3, DeepSeek-Coder, and OpenAI-compatible local servers.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon cyan">🔒</div>
-          <h3 class="feature-title">Private by Design</h3>
-          <p class="feature-desc">Zero external network telemetry. Operates seamlessly in air-gapped, defense, and high-security environments.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon purple">🔄</div>
-          <h3 class="feature-title">Incremental Indexing</h3>
-          <p class="feature-desc">SHA-256 hash tracking re-indexes only modified files, saving computing power and maintaining instant query speed.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon emerald">🔌</div>
-          <h3 class="feature-title">IDE Extensions</h3>
-          <p class="feature-desc">Seamless integration with VS Code and IntelliJ IDEA sidebar views with inline citations and file jumping.</p>
-        </div>
-
-        <div class="glass-card">
-          <div class="feature-icon amber">🎯</div>
-          <h3 class="feature-title">Impact Analysis Engine</h3>
-          <p class="feature-desc">Predicts downstream class breaking changes before refactoring code across large enterprise services.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Interactive Product Demo Section -->
-  <section id="demo" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag cyan">Interactive Playground</div>
-        <h2 class="section-title">See ECIP Reasoning in Action</h2>
-        <p class="section-subtitle">Select example questions below to simulate how ECIP retrieves context and constructs answers.</p>
-      </div>
-
-      <div class="playground-container">
-        <!-- Sidebar Preset Queries -->
-        <div class="preset-sidebar">
-          <div class="preset-title">Select Example Query</div>
-          <button class="preset-btn active" onclick="loadDemoPreset(0)">
-            <span>🔍 Auth & Token Flow</span>
+      <div class="approach-card">
+        <div class="approach-tabs" role="tablist">
+          <button class="approach-tab-btn active" id="approach-btn-0" onclick="selectApproach(0)">
+            <span style="color:var(--accent-rose)">●</span> Naive Text Chunking (Brute Force)
           </button>
-          <button class="preset-btn" onclick="loadDemoPreset(1)">
-            <span>⚡ Impact Analysis of UserService</span>
+          <button class="approach-tab-btn" id="approach-btn-1" onclick="selectApproach(1)">
+            <span style="color:var(--accent-amber)">●</span> Pure Vector Search (FAISS Only)
           </button>
-          <button class="preset-btn" onclick="loadDemoPreset(2)">
-            <span>📦 Database Schema & Models</span>
-          </button>
-          <button class="preset-btn" onclick="loadDemoPreset(3)">
-            <span>🛠️ Order Validation Pipeline</span>
+          <button class="approach-tab-btn" id="approach-btn-2" onclick="selectApproach(2)">
+            <span style="color:var(--accent-emerald)">●</span> ECIP Hybrid + AST Graph Grounding
           </button>
         </div>
 
-        <!-- Output Display Area -->
-        <div class="demo-output-area">
-          <div class="demo-tabs">
-            <button class="tab-btn active" onclick="switchDemoTab('answer')">LLM Answer</button>
-            <button class="tab-btn" onclick="switchDemoTab('ast')">AST & Call Graph Context</button>
-            <button class="tab-btn" onclick="switchDemoTab('citations')">Source Citations</button>
-            <button class="tab-btn" onclick="switchDemoTab('telemetry')">Execution Metrics</button>
+        <div class="metrics-row">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim); text-transform:uppercase;">Time Complexity</div>
+            <div class="metric-item-val" id="approach-time-val" style="color:var(--accent-rose)">O(N) Naive Scan</div>
           </div>
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim); text-transform:uppercase;">Context Precision</div>
+            <div class="metric-item-val" id="approach-precision-val" style="color:var(--accent-cyan)">25%</div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim); text-transform:uppercase;">Hallucination Risk</div>
+            <div class="metric-item-val" id="approach-risk-val" style="color:var(--accent-rose)">HIGH</div>
+          </div>
+        </div>
 
-          <div class="code-window" id="demo-content-window">
-            <!-- Dynamic JavaScript Content Loaded Here -->
+        <div>
+          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-muted);">
+            <span>Retrieval Accuracy Gauge</span>
+            <span id="approach-ops-count">1,000,000 text operations</span>
           </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="approach-progress-bar" style="width: 25%;"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; font-family:var(--font-mono); font-size:0.875rem; color:var(--text-muted);" id="approach-desc-text">
+          Naive text chunking splits files every 500 characters, severing class headers from method bodies and injecting massive noise into the LLM context.
         </div>
       </div>
     </div>
   </section>
 
-  <!-- How ECIP Works / Pipeline Architecture -->
-  <section id="how-it-works" class="section" style="background: rgba(15, 23, 42, 0.4);">
+  <!-- Pick a Track Section (Chaicode Track Grid Style) -->
+  <section id="tracks" class="section">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag purple">End-to-End Pipeline</div>
-        <h2 class="section-title">How ECIP Process Intelligence</h2>
-        <p class="section-subtitle">Click any pipeline node to inspect the exact internal mechanics.</p>
+        <div class="section-tag cyan">Intelligence Modules</div>
+        <h2 class="section-title">Pick an Intelligence Track</h2>
+        <p class="section-subtitle">ECIP structures code intelligence into distinct specialized engines. Step directly into any track.</p>
       </div>
 
-      <div class="pipeline-stepper">
-        <div class="pipeline-node active" onclick="selectPipelineNode(0)">
-          <div class="node-number">1</div>
-          <div class="node-label">Project Scanner</div>
+      <div class="tracks-grid">
+        <!-- Track 1 -->
+        <div class="track-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="font-family:var(--font-heading); font-size:1.5rem; font-weight:800;">Core RAG Track</h3>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Hybrid Retrieval Engine</div>
+            </div>
+            <span class="sketch-pill">LIVE</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:14px;">
+            Dense vector search (FAISS) combined with lexical BM25 exact symbol matching, min-max score fusion, and cross-encoder re-ranking.
+          </p>
+          <div class="track-tag-list">
+            <span class="track-tag-item">FAISS L2</span>
+            <span class="track-tag-item">BM25 Search</span>
+            <span class="track-tag-item">Score Normalization</span>
+            <span class="track-tag-item">Cross-Encoder</span>
+          </div>
+          <div class="track-footer">
+            <span>2 Search Modes · Top-K Fusion</span>
+            <span style="color:var(--accent-cyan); font-weight:700;">Explore →</span>
+          </div>
         </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(1)">
-          <div class="node-number">2</div>
-          <div class="node-label">AST Parser</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(2)">
-          <div class="node-number">3</div>
-          <div class="node-label">Chunker & Embed</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(3)">
-          <div class="node-number">4</div>
-          <div class="node-label">FAISS & BM25 Index</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(4)">
-          <div class="node-number">5</div>
-          <div class="node-label">Intent Analyzer</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(5)">
-          <div class="node-number">6</div>
-          <div class="node-label">Hybrid Retrieval</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(6)">
-          <div class="node-number">7</div>
-          <div class="node-label">Context Builder</div>
-        </div>
-        <div class="pipeline-node" onclick="selectPipelineNode(7)">
-          <div class="node-number">8</div>
-          <div class="node-label">Local LLM</div>
-        </div>
-      </div>
 
-      <div class="pipeline-info-box" id="pipeline-details-box">
-        <!-- Loaded via JS -->
+        <!-- Track 2 -->
+        <div class="track-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="font-family:var(--font-heading); font-size:1.5rem; font-weight:800;">AST & Graph Track</h3>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Codebase Structure Engine</div>
+            </div>
+            <span class="sketch-pill purple">CORE</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:14px;">
+            Extracts Abstract Syntax Trees to map caller/callee links, constructor dependency injection, interface contracts, and impact analysis.
+          </p>
+          <div class="track-tag-list">
+            <span class="track-tag-item">Class Trees</span>
+            <span class="track-tag-item">Method Invocations</span>
+            <span class="track-tag-item">Call Graph</span>
+            <span class="track-tag-item">Impact Analysis</span>
+          </div>
+          <div class="track-footer">
+            <span>4 AST Extractors · SQLite Graph</span>
+            <span style="color:var(--accent-purple); font-weight:700;">Explore →</span>
+          </div>
+        </div>
+
+        <!-- Track 3 -->
+        <div class="track-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="font-family:var(--font-heading); font-size:1.5rem; font-weight:800;">Privacy & LLM Track</h3>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Offline Inference Engine</div>
+            </div>
+            <span class="sketch-pill emerald">AIR-GAPPED</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:14px;">
+            Integrates natively with local Ollama instances, Qwen 2.5 Coder, Llama 3, and GGUF backends with zero telemetry or network calls.
+          </p>
+          <div class="track-tag-list">
+            <span class="track-tag-item">Ollama Native</span>
+            <span class="track-tag-item">Qwen Coder</span>
+            <span class="track-tag-item">Llama 3</span>
+            <span class="track-tag-item">Zero Network</span>
+          </div>
+          <div class="track-footer">
+            <span>100% Local · Offline Sovereignty</span>
+            <span style="color:var(--accent-emerald); font-weight:700;">Explore →</span>
+          </div>
+        </div>
+
+        <!-- Track 4 -->
+        <div class="track-card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="font-family:var(--font-heading); font-size:1.5rem; font-weight:800;">IDE & Tooling Track</h3>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Developer Integrations</div>
+            </div>
+            <span class="sketch-pill">NEW</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:14px;">
+            VS Code Extension sidebar & IntelliJ IDEA plugins featuring live NDJSON token streaming, line citations, and jump-to-code shortcuts.
+          </p>
+          <div class="track-tag-list">
+            <span class="track-tag-item">VS Code Sidebar</span>
+            <span class="track-tag-item">IntelliJ Plugin</span>
+            <span class="track-tag-item">FastAPI Server</span>
+            <span class="track-tag-item">NDJSON Stream</span>
+          </div>
+          <div class="track-footer">
+            <span>2 IDE Plugins · REST Gateway</span>
+            <span style="color:var(--accent-cyan); font-weight:700;">Explore →</span>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Privacy Architecture -->
-  <section id="privacy" class="section">
+  <!-- Interactive Indexing & Schedule Planner (Chaicode Interview Prep Style) -->
+  <section id="planner" class="section" style="background: rgba(15, 23, 42, 0.3);">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag emerald">Data Sovereignty</div>
-        <h2 class="section-title">Zero Network Egress Guarantee</h2>
-        <p class="section-subtitle">Designed for healthcare, finance, defense, and privacy-sensitive codebases.</p>
+        <div class="section-tag emerald">Enterprise Capacity</div>
+        <h2 class="section-title">Configure Repository Indexing Schedule</h2>
+        <p class="section-subtitle">
+          Select repository size and worker configurations to preview indexing latency and memory footprint.
+        </p>
       </div>
 
-      <div class="comparison-grid" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="glass-card">
-          <div class="feature-icon emerald">🛡️</div>
-          <h3 class="feature-title">No Cloud Uploads</h3>
-          <p class="feature-desc">Source files, AST metadata, and vector indices never leave your workstation or local server cluster.</p>
+      <div class="planner-box">
+        <div class="planner-controls-row">
+          <div class="planner-control-group">
+            <span class="planner-label">Repo Size</span>
+            <div class="planner-btn-group">
+              <button class="planner-opt-btn" onclick="updatePlanner('repo', 'small')">50k LOC</button>
+              <button class="planner-opt-btn active" onclick="updatePlanner('repo', 'medium')">200k LOC</button>
+              <button class="planner-opt-btn" onclick="updatePlanner('repo', 'enterprise')">1M LOC</button>
+            </div>
+          </div>
+
+          <div class="planner-control-group">
+            <span class="planner-label">Indexing Mode</span>
+            <div class="planner-btn-group">
+              <button class="planner-opt-btn active" onclick="updatePlanner('mode', 'incremental')">Incremental SHA-256</button>
+              <button class="planner-opt-btn" onclick="updatePlanner('mode', 'clean')">Full Clean Build</button>
+            </div>
+          </div>
+
+          <div class="planner-control-group">
+            <span class="planner-label">Worker Threads</span>
+            <div class="planner-btn-group">
+              <button class="planner-opt-btn" onclick="updatePlanner('threads', 4)">4 Threads</button>
+              <button class="planner-opt-btn active" onclick="updatePlanner('threads', 8)">8 Threads</button>
+            </div>
+          </div>
         </div>
-        <div class="glass-card">
-          <div class="feature-icon cyan">📡</div>
-          <h3 class="feature-title">Zero Telemetry</h3>
-          <p class="feature-desc">We track zero user usage metrics, user queries, or codebase metadata. Complete air-gap compatibility.</p>
+
+        <!-- Chunk Matrix Visualizer -->
+        <div class="chunk-matrix-grid" id="planner-matrix-grid">
+          <!-- Rendered via JS -->
         </div>
-        <div class="glass-card">
-          <div class="feature-icon purple">💻</div>
-          <h3 class="feature-title">Local Vector Storage</h3>
-          <p class="feature-desc">Embedded SQLite and local FAISS vector indices store all project embeddings directly inside your <code>.ecip/</code> directory.</p>
+
+        <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <span class="sketch-pill emerald">● ON TRACK FOR DEPLOYMENT</span>
+            <span style="font-family:var(--font-mono); font-size:0.85rem; color:var(--text-muted); margin-left:12px;" id="planner-chunks-text">42 / 42 Chunks Synced · 100% Complete</span>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--accent-cyan);" id="planner-est-time">
+            Estimated Build Time: ~1.2 seconds (Incremental)
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ECIP vs Traditional AI Assistants Table -->
-  <section class="section" style="background: rgba(15, 23, 42, 0.3);">
+  <!-- Quick Start Terminal Section -->
+  <section id="quickstart" class="section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag purple">Quick Start</div>
+        <h2 class="section-title">Get Up and Running in 60 Seconds</h2>
+        <p class="section-subtitle">Clone, install dependencies, pull a local model, and launch the platform.</p>
+      </div>
+
+      <div class="quickstart-card">
+        <div class="approach-tabs">
+          <button class="approach-tab-btn active" onclick="switchQuickstart('source')">Source Install</button>
+          <button class="approach-tab-btn" onclick="switchQuickstart('docker')">Docker Container</button>
+          <button class="approach-tab-btn" onclick="switchQuickstart('vscode')">VS Code Extension</button>
+        </div>
+
+        <div class="terminal-box">
+          <button class="copy-btn" onclick="copyQuickstartCode()">Copy Command</button>
+          <code id="quickstart-code-text">
+# 1. Clone repository
+git clone https://github.com/Zade-Samir/ECIP-lite.git
+cd ECIP-lite
+
+# 2. Setup virtual environment & dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Pull local model via Ollama
+ollama pull qwen2.5-coder:7b
+
+# 4. Start ECIP FastAPI Server
+python run_api.py
+          </code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Matrix Table -->
+  <section class="section" style="background: rgba(15, 23, 42, 0.4);">
     <div class="container">
       <div class="section-header">
         <div class="section-tag cyan">Comparison</div>
@@ -393,121 +429,8 @@
     </div>
   </section>
 
-  <!-- Quick Start Terminal Section -->
-  <section id="quickstart" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag purple">Developer Onboarding</div>
-        <h2 class="section-title">Get Up and Running in 60 Seconds</h2>
-        <p class="section-subtitle">Clone, install dependencies, pull a local model, and launch the platform.</p>
-      </div>
-
-      <div class="quickstart-card">
-        <div class="demo-tabs">
-          <button class="tab-btn active" onclick="switchQuickstart('source')">Source Install</button>
-          <button class="tab-btn" onclick="switchQuickstart('docker')">Docker Container</button>
-          <button class="tab-btn" onclick="switchQuickstart('vscode')">VS Code Extension</button>
-        </div>
-
-        <div class="terminal-box" id="quickstart-terminal">
-          <button class="copy-btn" onclick="copyQuickstartCode()">Copy Command</button>
-          <code id="quickstart-code-text">
-# 1. Clone repository
-git clone https://github.com/Zade-Samir/ECIP-lite.git
-cd ECIP-lite
-
-# 2. Setup virtual environment & dependencies
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Pull local model via Ollama
-ollama pull qwen2.5-coder:7b
-
-# 4. Start ECIP FastAPI Server
-python run_api.py
-          </code>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Tech Stack Grid -->
-  <section class="section" style="background: rgba(15, 23, 42, 0.4);">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag cyan">Technology Stack</div>
-        <h2 class="section-title">Built with Modern High-Performance Tools</h2>
-      </div>
-
-      <div class="features-grid">
-        <div class="glass-card">
-          <h3 class="feature-title">Python 3.11+ & FastAPI</h3>
-          <p class="feature-desc">Async REST routing and streaming response backend.</p>
-        </div>
-        <div class="glass-card">
-          <h3 class="feature-title">Ollama & GGUF</h3>
-          <p class="feature-desc">Local GPU/CPU inference engine supporting Qwen, Llama 3, and DeepSeek.</p>
-        </div>
-        <div class="glass-card">
-          <h3 class="feature-title">FAISS & BM25</h3>
-          <p class="feature-desc">Dual vector L2 similarity and rank-bm25 keyword indexing.</p>
-        </div>
-        <div class="glass-card">
-          <h3 class="feature-title">SQLite & Neo4j</h3>
-          <p class="feature-desc">Dual metadata store for AST symbols and property dependency graphs.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Public Roadmap -->
-  <section id="roadmap" class="section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag purple">Public Roadmap</div>
-        <h2 class="section-title">The Evolution of ECIP</h2>
-      </div>
-
-      <div class="features-grid">
-        <div class="glass-card" style="border-color: var(--accent-emerald);">
-          <span class="comp-badge ecip">v1.0 — Launched (Core RAG)</span>
-          <h3 class="feature-title" style="margin-top: 12px;">Code Intelligence Core</h3>
-          <ul style="color: var(--text-muted); font-size: 0.9rem; padding-left: 20px; line-height: 1.8;">
-            <li>Java AST parsing & metadata extraction</li>
-            <li>FAISS vector index persistence</li>
-            <li>Ollama local LLM integration</li>
-            <li>Streamed API & CLI responses</li>
-          </ul>
-        </div>
-
-        <div class="glass-card" style="border-color: var(--accent-cyan);">
-          <span class="comp-badge cloud" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan);">v1.5 — In Progress</span>
-          <h3 class="feature-title" style="margin-top: 12px;">Developer Experience & IDEs</h3>
-          <ul style="color: var(--text-muted); font-size: 0.9rem; padding-left: 20px; line-height: 1.8;">
-            <li>VS Code Extension Sidebar</li>
-            <li>IntelliJ IDEA Plugin</li>
-            <li>Incremental SHA-256 hash tracking</li>
-            <li>Cross-Encoder Reranking</li>
-          </ul>
-        </div>
-
-        <div class="glass-card" style="border-color: var(--accent-purple);">
-          <span class="comp-badge cloud" style="background: rgba(168, 85, 247, 0.15); color: var(--accent-purple);">v2.0 — Planned</span>
-          <h3 class="feature-title" style="margin-top: 12px;">Enterprise Polyglot Graph</h3>
-          <ul style="color: var(--text-muted); font-size: 0.9rem; padding-left: 20px; line-height: 1.8;">
-            <li>Tree-Sitter Polyglot AST (Python, TS, Go, Rust)</li>
-            <li>SQLite Vector (sqlite-vec) migration</li>
-            <li>1-Hop Graph Context Expansion</li>
-            <li>Multi-repository impact reasoning</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- FAQ Accordion -->
-  <section id="faq" class="section" style="background: rgba(15, 23, 42, 0.4);">
+  <section id="faq" class="section">
     <div class="container">
       <div class="section-header">
         <div class="section-tag emerald">FAQ</div>
@@ -561,9 +484,9 @@ python run_api.py
   <!-- Footer & Final CTA -->
   <footer class="footer">
     <div class="container">
-      <div style="text-align: center; max-width: 600px; margin: 0 auto 60px auto;">
+      <div style="text-align: center; max-width: 620px; margin: 0 auto 60px auto;">
         <h2 class="section-title" style="font-size: 2.2rem;">Your codebase. Your machine. Your intelligence.</h2>
-        <p style="color: var(--text-muted); margin-bottom: 24px;">Start understanding enterprise codebases without compromise.</p>
+        <p style="color: var(--text-muted); margin-bottom: 24px;">Start understanding enterprise codebases frame by frame.</p>
         <button class="btn btn-primary" onclick="openDownloadModal()">Download ECIP Open Source</button>
       </div>
 
@@ -571,7 +494,7 @@ python run_api.py
         <div class="footer-col">
           <a href="#" class="brand-logo" style="margin-bottom: 16px;">
             <div class="logo-icon">⚡</div>
-            <span>ECIP.dev</span>
+            <span>ECIP Visual</span>
           </a>
           <p style="color: var(--text-muted); font-size: 0.9rem;">
             Enterprise Code Intelligence Platform — 100% offline, privacy-first AI code intelligence engine.
@@ -581,10 +504,10 @@ python run_api.py
         <div class="footer-col">
           <h4>Product</h4>
           <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#how-it-works">Architecture</a></li>
-            <li><a href="#demo">Interactive Demo</a></li>
-            <li><a href="#privacy">Privacy Model</a></li>
+            <li><a href="#hero">Visualizer</a></li>
+            <li><a href="#approaches">Approach Leap</a></li>
+            <li><a href="#tracks">Tracks</a></li>
+            <li><a href="#planner">Indexing Planner</a></li>
           </ul>
         </div>
 
@@ -593,7 +516,6 @@ python run_api.py
           <ul>
             <li><a href="javascript:void(0)" onclick="openDocsModal()">Documentation</a></li>
             <li><a href="#quickstart">Quick Start</a></li>
-            <li><a href="#roadmap">Public Roadmap</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
         </div>
@@ -610,7 +532,7 @@ python run_api.py
       </div>
 
       <div class="footer-bottom">
-        &copy; 2026 Enterprise Code Intelligence Platform (ECIP). Open Source MIT License.
+        &copy; 2026 Enterprise Code Intelligence Platform (ECIP Visual). Open Source MIT License.
       </div>
     </div>
   </footer>
@@ -622,33 +544,33 @@ python run_api.py
       <h2 class="section-title" style="font-size: 2rem; margin-bottom: 8px;">Download ECIP v1.2.0</h2>
       <p style="color: var(--text-muted); margin-bottom: 28px;">Select your operating system or installation package.</p>
 
-      <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="glass-card" style="text-align: center; padding: 24px;">
+      <div class="tracks-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+        <div class="track-card" style="text-align: center; padding: 24px;">
           <div style="font-size: 2.5rem; margin-bottom: 12px;">🍎</div>
           <h3 style="font-size: 1.1rem; margin-bottom: 8px;">macOS</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Apple Silicon (M1/M2/M3/M4) & Intel</p>
-          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Install via Source</a>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Apple Silicon & Intel</p>
+          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Source Setup</a>
         </div>
 
-        <div class="glass-card" style="text-align: center; padding: 24px;">
+        <div class="track-card" style="text-align: center; padding: 24px;">
           <div style="font-size: 2.5rem; margin-bottom: 12px;">🐧</div>
           <h3 style="font-size: 1.1rem; margin-bottom: 8px;">Linux</h3>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Ubuntu, Debian, Fedora, Arch x86_64</p>
-          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Install via Script</a>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Ubuntu, Debian, Fedora</p>
+          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Install Script</a>
         </div>
 
-        <div class="glass-card" style="text-align: center; padding: 24px;">
+        <div class="track-card" style="text-align: center; padding: 24px;">
           <div style="font-size: 2.5rem; margin-bottom: 12px;">🪟</div>
           <h3 style="font-size: 1.1rem; margin-bottom: 8px;">Windows</h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Windows 11 / WSL2</p>
           <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Setup Guide</a>
         </div>
 
-        <div class="glass-card" style="text-align: center; padding: 24px;">
+        <div class="track-card" style="text-align: center; padding: 24px;">
           <div style="font-size: 2.5rem; margin-bottom: 12px;">🐳</div>
           <h3 style="font-size: 1.1rem; margin-bottom: 8px;">Docker</h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Containerized Server</p>
-          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Pull Container</a>
+          <a href="https://github.com/Zade-Samir/ECIP-lite" target="_blank" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; width: 100%;">Pull Docker</a>
         </div>
       </div>
     </div>
