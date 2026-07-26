@@ -25,10 +25,7 @@ const PRESETS = [
       { file: "JwtTokenService.java (Lines 102-134)", tier: "Class Match", color: "purple" },
       { file: "JwtSecurityFilter.java (Lines 15-60)", tier: "Vector 0.94", color: "emerald" },
     ],
-    telemetry: `⚡ Retrieval Latency: 14.2 ms
-🧠 Intent: "qa_explain" (Confidence: 0.98)
-📦 Retrieved Chunks: 4 (2 Hybrid, 2 AST Method)
-🦙 Ollama: qwen2.5-coder:7b (840 ms total)`
+    telemetry: null
   },
   {
     title: "Impact Analysis",
@@ -55,9 +52,7 @@ Changes to UserService.java affect 7 downstream components:
       { file: "AuthController.java", tier: "Depth 1", color: "purple" },
       { file: "UserController.java", tier: "Depth 1", color: "emerald" },
     ],
-    telemetry: `⚡ Graph Traversal: 6.8 ms
-🧠 Intent: "impact_analysis"
-🌐 Nodes Evaluated: 14 nodes, 22 directed edges`
+    telemetry: null
   },
   {
     title: "Database Schema",
@@ -81,13 +76,11 @@ Changes to UserService.java affect 7 downstream components:
     ├── @Table(name = "users")
     └── @OneToMany List<RoleEntity> roles`,
     citations: [
-      { file: "V1__init_schema.sql", tier: "SQL DDL", color: "indigo" },
-      { file: "V2__add_indexes.sql", tier: "Migration", color: "amber" },
-      { file: "UserEntity.java (Lines 1-65)", tier: "JPA Model", color: "emerald" },
+      { file: "V1__init_schema.sql", tier: "SQL Migration", color: "indigo" },
+      { file: "V2__add_indexes.sql", tier: "SQL Migration", color: "amber" },
+      { file: "UserEntity.java (Lines 1-65)", tier: "JPA Entity", color: "emerald" },
     ],
-    telemetry: `⚡ Search Latency: 11.5 ms
-🧠 Intent: "schema_lookup"
-📦 Retrieved: 3 SQL DDL tables, 2 JPA entities`
+    telemetry: null
   }
 ];
 
@@ -150,7 +143,7 @@ export default function Playground() {
 
               {/* Tabs */}
               <div className="flex items-center gap-1 border-b border-gray-100 pb-2">
-                {[['answer','Answer'],['ast','AST Graph'],['citations','Citations'],['telemetry','Telemetry']].map(([key, label]) => (
+                {[['answer','Answer'],['ast','AST Graph'],['citations','File Citations']].map(([key, label]) => (
                   <button
                     key={key}
                     onClick={() => setTab(key)}

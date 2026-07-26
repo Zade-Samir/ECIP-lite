@@ -11,11 +11,11 @@ function GithubIcon({ className = "w-4 h-4" }) {
 
 const LOGOS = [
   { name: "Ollama", emoji: "🦙" },
-  { name: "VS Code", emoji: "💙" },
-  { name: "IntelliJ", emoji: "🛠️" },
+  { name: "VS Code", emoji: "💻" },
+  { name: "IntelliJ IDEA", emoji: "🛠️" },
   { name: "GitHub", emoji: "🐙" },
-  { name: "Qwen 2.5", emoji: "🤖" },
-  { name: "Llama 3", emoji: "🦙" },
+  { name: "Qwen 2.5 Coder", emoji: "🤖" },
+  { name: "Llama 3.1", emoji: "🔮" },
 ];
 
 export default function Hero({ onOpenDownload, onOpenDocs }) {
@@ -36,7 +36,7 @@ export default function Hero({ onOpenDownload, onOpenDocs }) {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 hero-badge">
             <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-            <span>100% Offline &amp; Private — No Cloud Required</span>
+            <span>Open Source · 100% Local · Zero Cloud Dependency</span>
           </div>
 
           {/* Headline */}
@@ -48,7 +48,7 @@ export default function Hero({ onOpenDownload, onOpenDocs }) {
 
           {/* Subtitle */}
           <p className="text-lg sm:text-xl text-gray-500 leading-relaxed max-w-2xl mx-auto font-normal">
-            An open-source AI code intelligence platform that indexes your entire repository, builds AST dependency graphs, and delivers contextual answers — all running locally on your machine.
+            ECIP is a self-hosted AI assistant for large codebases. It parses your repository structure, builds call graphs, and answers complex code questions — entirely on your own hardware.
           </p>
 
           {/* CTAs */}
@@ -141,13 +141,12 @@ export default function Hero({ onOpenDownload, onOpenDocs }) {
             {/* Output Content */}
             <div className="bg-white border border-gray-100 rounded-xl p-4 min-h-[180px] text-sm text-gray-700 leading-relaxed shadow-sm overflow-x-auto font-mono">
               {activeTab === 'stream' && (
-                <div className="space-y-2 text-xs">
-                  <div className="text-gray-400 text-[11px]">[Intent: qa_explain | Entities: AuthController, JwtTokenService]</div>
-                  <p className="text-gray-800 font-sans text-sm leading-relaxed">The authentication pipeline is managed across 3 components:</p>
-                  <ul className="border-l-2 border-indigo-300 pl-4 space-y-1.5 text-gray-700">
-                    <li>1. <strong className="text-indigo-600">AuthController.java</strong> (L45-78): Handles <code className="bg-gray-100 px-1 rounded">POST /api/v1/auth/login</code></li>
-                    <li>2. <strong className="text-purple-600">JwtProvider.java</strong> (L102-134): Generates signed JWT payload with claims</li>
-                    <li>3. <strong className="text-emerald-600">SecurityFilter.java</strong> (L15-60): Validates Bearer tokens locally</li>
+                <div className="space-y-3">
+                  <p className="text-gray-800 font-sans text-sm leading-relaxed font-medium">The authentication pipeline spans 3 core components:</p>
+                  <ul className="border-l-2 border-indigo-300 pl-4 space-y-2 text-sm">
+                    <li className="text-gray-700"><strong className="text-indigo-600">AuthController.java</strong> (L45–78) — handles login endpoint, delegates to UserService</li>
+                    <li className="text-gray-700"><strong className="text-purple-600">JwtProvider.java</strong> (L102–134) — issues signed JWT tokens with tenant claims</li>
+                    <li className="text-gray-700"><strong className="text-emerald-600">SecurityFilter.java</strong> (L15–60) — validates Bearer tokens on every incoming request</li>
                   </ul>
                 </div>
               )}
@@ -164,17 +163,18 @@ export default function Hero({ onOpenDownload, onOpenDocs }) {
               )}
               {activeTab === 'citations' && (
                 <div className="space-y-2">
-                  <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700 flex justify-between">
-                    <span>📄 AuthController.java (Lines 45-78)</span>
-                    <span className="text-indigo-400">FAISS Tier 1</span>
+                  <p className="text-xs text-gray-400 mb-3">3 source files cited from your repository:</p>
+                  <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700 flex justify-between items-center">
+                    <span className="font-medium">📄 AuthController.java — Lines 45–78</span>
+                    <span className="text-indigo-400 font-semibold">Primary Match</span>
                   </div>
-                  <div className="p-2.5 rounded-lg bg-purple-50 border border-purple-100 text-xs text-purple-700 flex justify-between">
-                    <span>📄 JwtProvider.java (Lines 102-134)</span>
-                    <span className="text-purple-400">BM25 Match</span>
+                  <div className="p-2.5 rounded-lg bg-purple-50 border border-purple-100 text-xs text-purple-700 flex justify-between items-center">
+                    <span className="font-medium">📄 JwtProvider.java — Lines 102–134</span>
+                    <span className="text-purple-400 font-semibold">Keyword Match</span>
                   </div>
-                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 flex justify-between">
-                    <span>📄 SecurityFilter.java (Lines 15-60)</span>
-                    <span className="text-emerald-400">Vector 0.94</span>
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 flex justify-between items-center">
+                    <span className="font-medium">📄 SecurityFilter.java — Lines 15–60</span>
+                    <span className="text-emerald-400 font-semibold">Semantic Match</span>
                   </div>
                 </div>
               )}
@@ -183,9 +183,9 @@ export default function Hero({ onOpenDownload, onOpenDocs }) {
         </div>
 
         {/* Social Proof Logo Strip */}
-        <div className="mt-12 text-center">
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-5">Works with your stack</p>
-          <div className="flex flex-wrap items-center justify-center gap-6">
+        <div className="mt-14 pb-8 text-center border-t border-gray-100 pt-12">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest mb-6">Integrates with your existing tools</p>
+          <div className="flex flex-wrap items-center justify-center gap-8">
             {LOGOS.map((l) => (
               <div key={l.name} className="flex items-center gap-2 text-sm text-gray-500 font-semibold hover:text-gray-800 transition-colors">
                 <span className="text-xl">{l.emoji}</span>

@@ -3,24 +3,28 @@ import { ChevronDown, HelpCircle } from 'lucide-react';
 
 const FAQS = [
   {
-    q: "Does ECIP send any source code to external cloud servers?",
-    a: "No. ECIP is designed specifically for zero-trust and privacy-sensitive codebases. All AST parsing, vector embedding generation, BM25 indexing, and LLM inference run strictly on your local machine or self-hosted server cluster."
+    q: "Does ECIP send any source code to external servers?",
+    a: "No. ECIP is a fully self-hosted platform. All repository parsing, vector embedding, BM25 indexing, and LLM inference happen locally on your machine or your own server cluster. There are zero outbound network calls made during normal operation."
+  },
+  {
+    q: "What are the system requirements?",
+    a: "ECIP requires Python 3.10+, and Ollama installed and running locally. For LLM inference, we recommend at least 16GB RAM for 7B parameter models. FAISS-based indexing works well on CPU-only machines — no GPU is required, though GPU acceleration is supported."
   },
   {
     q: "Which local LLMs does ECIP support?",
-    a: "ECIP supports any model running on Ollama, LM Studio, or OpenAI-compatible local API servers. Recommended choices include Qwen 2.5 Coder (7B / 14B / 32B), DeepSeek-Coder-V2, and Llama 3.1."
+    a: "ECIP works with any model running through Ollama, LM Studio, or any OpenAI-compatible local server. Recommended models include Qwen 2.5 Coder 7B/14B, DeepSeek-Coder-V2, and Llama 3.1. Smaller 3B models also work for machines with limited RAM."
   },
   {
     q: "How does ECIP handle large repositories with thousands of files?",
-    a: "ECIP uses SHA-256 hash tracking during project scanning to skip unchanged files. Only modified files are re-parsed and re-embedded, allowing fast incremental index updates even on very large codebases."
+    a: "ECIP uses SHA-256 checksums during scanning to detect which files have changed since the last index run. Only modified files are re-parsed and re-embedded — unchanged files are skipped entirely. This keeps incremental re-indexing fast even on repositories with 500k+ lines of code."
   },
   {
     q: "Is ECIP free and open-source?",
-    a: "Yes! ECIP Lite is licensed under the permissive MIT Open Source License. You can modify, self-host, and integrate it into commercial products without any restrictions."
+    a: "Yes. ECIP Lite is released under the MIT open-source license. You are free to use it commercially, fork it, self-host it, and contribute back to the project. There is no SaaS subscription, no freemium tier, and no feature gating."
   },
   {
-    q: "What programming languages does ECIP support?",
-    a: "ECIP v1.x supports Java via the javalang AST parser. ECIP v2.0 (planned) will add full polyglot support for Python, TypeScript, Go, and Rust via Tree-Sitter parsers."
+    q: "What programming languages does ECIP currently support?",
+    a: "ECIP v1.x supports Java via the javalang AST parser. The v2.0 roadmap includes full polyglot support for Python, TypeScript, Go, and Rust using Tree-Sitter-based parsers. Generic text chunking is available as a fallback for any file type."
   }
 ];
 

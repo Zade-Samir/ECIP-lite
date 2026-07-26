@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Layers } from 'lucide-react';
 
 const STEPS = [
-  { num: "01", name: "Project Scanner", desc: "Recursively scans workspace files, skipping build artifacts. Computes SHA-256 hashes for fast incremental re-indexing." },
-  { num: "02", name: "AST Parser", desc: "Extracts Abstract Syntax Trees using javalang (and Tree-Sitter in v2). Maps classes, methods, parameters, and call chains." },
-  { num: "03", name: "Chunker & Embedder", desc: "Splits code by semantic AST method boundaries. Generates dense vector embeddings using local Ollama embedding models." },
-  { num: "04", name: "FAISS & BM25 Index", desc: "Persists L2 vector embeddings in persistent FAISS indices and builds an inverted BM25 keyword index for exact symbol lookups." },
-  { num: "05", name: "Intent Analyzer", desc: "Classifies incoming questions using regex patterns and lightweight intent classification to route to the correct engine." },
-  { num: "06", name: "Hybrid Retrieval", desc: "Executes parallel BM25 keyword matching and FAISS vector similarity search, then applies cross-encoder re-ranking." },
-  { num: "07", name: "Context Builder", desc: "Assembles retrieved code chunks, class signatures, and AST dependency edges within the LLM context window budget." },
-  { num: "08", name: "Local LLM Inference", desc: "Sends assembled prompts to your local Ollama instance and streams formatted responses with file citations back to the IDE." },
+  { num: "01", name: "Project Scanner", desc: "ECIP recursively walks your repository, identifying source files and computing SHA-256 checksums. Only changed files are re-processed on subsequent runs, making updates near-instant." },
+  { num: "02", name: "AST Parser", desc: "Each source file is parsed into an Abstract Syntax Tree. ECIP extracts classes, methods, annotations, field declarations, and caller-callee relationships into a structured knowledge graph." },
+  { num: "03", name: "Chunker & Embedder", desc: "Code is split at natural AST boundaries (per method, per class). Each chunk is converted into a numerical vector embedding using a locally-running Ollama embedding model." },
+  { num: "04", name: "Vector & Keyword Index", desc: "Embeddings are stored in a persistent FAISS index for semantic search. A BM25 inverted index is built in parallel for exact symbol and keyword lookups." },
+  { num: "05", name: "Intent Classifier", desc: "When you ask a question, ECIP classifies your intent — distinguishing between \"explain this code\", \"find usages\", \"impact analysis\", and \"schema lookup\" to route to the right engine." },
+  { num: "06", name: "Hybrid Retrieval", desc: "BM25 and FAISS searches run in parallel. Results are merged, deduplicated, and re-ranked by relevance score to produce the most precise set of context chunks." },
+  { num: "07", name: "Context Assembly", desc: "Retrieved code chunks, class signatures, and dependency edges are assembled into a structured prompt that fits within the LLM context window without truncation." },
+  { num: "08", name: "LLM Response", desc: "The assembled prompt is sent to your local Ollama instance. The response streams directly to your IDE or API client, with source file citations referencing exact line numbers." },
 ];
 
 export default function Pipeline() {

@@ -4,38 +4,45 @@ import { GitCommit, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 const VERSIONS = [
   {
     ver: "v1.0",
-    label: "Launched",
+    label: "Launched ✔",
+    title: "Core Intelligence Engine",
     color: "bg-emerald-50 border-emerald-200 text-emerald-700",
     dot: "bg-emerald-500",
     items: [
-      "Java AST parsing & metadata extraction",
-      "FAISS vector index persistence",
-      "Ollama local LLM integration",
-      "Streamed REST API & CLI responses",
+      "Java AST parsing with full metadata extraction",
+      "Persistent FAISS vector index",
+      "Hybrid BM25 + semantic search engine",
+      "Ollama local LLM integration (Qwen, Llama)",
+      "REST API with streamed responses",
+      "CLI interface for quick queries",
     ]
   },
   {
     ver: "v1.5",
-    label: "In Progress",
+    label: "In Progress ►",
+    title: "IDE Integration Layer",
     color: "bg-indigo-50 border-indigo-200 text-indigo-700",
-    dot: "bg-indigo-500",
+    dot: "bg-indigo-500 animate-pulse",
     items: [
-      "VS Code Extension Sidebar",
-      "IntelliJ IDEA Plugin",
-      "SHA-256 incremental hash tracking",
-      "Cross-Encoder Re-ranking",
+      "VS Code Extension with sidebar panel",
+      "IntelliJ IDEA plugin with inline citations",
+      "Incremental indexing via SHA-256 tracking",
+      "Cross-encoder re-ranking for precision",
+      "Workspace-level project management UI",
     ]
   },
   {
     ver: "v2.0",
     label: "Planned",
+    title: "Polyglot & Scale",
     color: "bg-gray-100 border-gray-200 text-gray-500",
     dot: "bg-gray-400",
     items: [
-      "Tree-Sitter Polyglot AST (Python, TS, Go, Rust)",
-      "SQLite-vec migration (sqlite-vec)",
-      "1-Hop Graph Context Expansion",
-      "Multi-repository impact reasoning",
+      "Multi-language AST: Python, TypeScript, Go, Rust",
+      "1-hop graph context expansion for richer answers",
+      "Multi-repository impact analysis",
+      "SQLite-vec embedding backend for zero dependencies",
+      "Web dashboard for index management",
     ]
   }
 ];
@@ -61,11 +68,12 @@ export default function Roadmap() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {VERSIONS.map((v, i) => (
             <div key={i} className="feature-card space-y-4">
-              <div className="flex items-center justify-between">
-                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${v.color}`}>
+              <div>
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold mb-3 ${v.color}`}>
                   <span className={`w-2 h-2 rounded-full ${v.dot}`} />
                   {v.ver} — {v.label}
                 </div>
+                <h3 className="text-base font-bold text-gray-900">{v.title}</h3>
               </div>
               <ul className="space-y-2.5">
                 {v.items.map((item, j) => (

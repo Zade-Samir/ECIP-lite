@@ -16,11 +16,10 @@ export default function Footer({ onOpenDownload, onOpenDocs }) {
       <div className="border-b border-white/10">
         <div className="max-w-5xl mx-auto px-4 lg:px-8 py-20 text-center space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Your codebase. Your machine.{' '}
-            <span className="text-indigo-400">Your intelligence.</span>
+            Ship better software, faster.
           </h2>
           <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto">
-            Start using AI-powered code intelligence without sending your source code anywhere.
+            ECIP gives your team deep, repository-wide code intelligence without compromising on privacy or requiring a cloud subscription.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <button

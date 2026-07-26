@@ -4,36 +4,50 @@ import { Terminal, Copy, Check } from 'lucide-react';
 const TABS = {
   source: {
     label: "Source Install",
-    code: `# 1. Clone ECIP repository
+    code: `# Clone the repository
 git clone https://github.com/Zade-Samir/ECIP-lite.git
 cd ECIP-lite
 
-# 2. Setup Python environment
-python3 -m venv .venv && source .venv/bin/activate
+# Create a Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-# 3. Pull local LLM via Ollama
+# Pull your preferred LLM via Ollama
 ollama pull qwen2.5-coder:7b
 
-# 4. Launch ECIP API Server
-python run_api.py`
+# Start the ECIP server
+python run_api.py
+# API now running at: http://localhost:8000`
   },
   docker: {
     label: "Docker",
-    code: `docker run -d \\
-  --name ecip-server \\
+    code: `# Pull and run ECIP as a Docker container
+# Ollama must be running on the host machine
+
+docker run -d \\
+  --name ecip \\
   -p 8000:8000 \\
-  -v $(pwd)/workspace:/app/workspace \\
-  -v ~/.ollama:/root/.ollama \\
-  zadesamir/ecip-lite:latest`
+  -v $(pwd)/workspace:/workspace \\
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \\
+  ghcr.io/zade-samir/ecip-lite:latest
+
+# API available at: http://localhost:8000`
   },
   vscode: {
-    label: "VS Code",
-    code: `# Install ECIP VS Code Extension
+    label: "VS Code Extension",
+    code: `# Step 1: Start ECIP server (see Source Install tab)
+python run_api.py
+
+# Step 2: Install the VS Code extension
 code --install-extension ecip-lite-1.2.0.vsix
 
-# Open VS Code → Ctrl+Shift+P
-# Execute: ECIP: Connect to Local Server`
+# Step 3: Connect in VS Code
+# Press Ctrl+Shift+P (or Cmd+Shift+P on macOS)
+# Run: "ECIP: Connect to Local Server"
+# Enter server URL: http://localhost:8000`
   }
 };
 
@@ -57,10 +71,10 @@ export default function Quickstart() {
             Developer Quickstart
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
-            Up and running in 60 seconds
+            From zero to running in under 5 minutes
           </h2>
           <p className="text-gray-500 text-base sm:text-lg">
-            Choose your installation method below.
+            Choose your preferred installation method. Requires Python 3.10+ and Ollama installed on your machine.
           </p>
         </div>
 
