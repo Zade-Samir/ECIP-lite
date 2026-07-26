@@ -18,4 +18,8 @@ logs/
 
 # Reports
 release_validation_report.json
+
+# Website (local development only — not tracked in git)
+website/
+
 .env
