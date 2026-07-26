@@ -31,11 +31,11 @@ class FAISSStore:
         if self.index_path and self.metadata_path:
             self._load()
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    def save(self) -> None:
+        """Expose public save method."""
+        self._save()
 
-    def add(self, embedding: Embedding) -> None:
+    def add(self, embedding: Embedding, auto_save: bool = True) -> None:
         """Add a single embedding vector to the index."""
         self._validate_dimension(embedding.vector, context="add")
 
@@ -44,7 +44,24 @@ class FAISSStore:
         self.metadata.append(embedding)
         logger.info("Vector added")
 
-        self._save()
+        if auto_save:
+            self._save()
+
+    def add_batch(self, embeddings: list[Embedding], auto_save: bool = True) -> None:
+        """Add multiple embedding vectors to the index in batch."""
+        if not embeddings:
+            return
+
+        for e in embeddings:
+            self._validate_dimension(e.vector, context="add_batch")
+
+        vectors = np.array([e.vector for e in embeddings], dtype="float32")
+        self.index.add(vectors)
+        self.metadata.extend(embeddings)
+        logger.info(f"Batch of {len(embeddings)} vectors added")
+
+        if auto_save:
+            self._save()
 
     def search(self, vector: list[float], k: int = 3) -> list[Embedding]:
         """Search for top-K nearest neighbours."""
@@ -93,20 +110,24 @@ class FAISSStore:
     def remove_file(self, file_path: str) -> None:
         """Remove all vectors belonging to a file and rebuild the index."""
         try:
+            target_resolved = str(Path(file_path).resolve())
             name_to_remove = Path(file_path).name
             new_metadata = [
                 e for e in self.metadata
-                if Path(e.file_name).name != name_to_remove
+                if not (
+                    (e.file_path and str(Path(e.file_path).resolve()) == target_resolved)
+                    or (not e.file_path and Path(e.file_name).name == name_to_remove)
+                )
             ]
 
             # Rebuild flat index without the removed file's vectors
             self.index = faiss.IndexFlatL2(self.dimension)
             self.metadata = []
 
-            for e in new_metadata:
-                vector = np.array([e.vector], dtype="float32")
-                self.index.add(vector)
-                self.metadata.append(e)
+            if new_metadata:
+                vectors = np.array([e.vector for e in new_metadata], dtype="float32")
+                self.index.add(vectors)
+                self.metadata = new_metadata
 
             logger.info("Stale vector cleaned")
             self._save()

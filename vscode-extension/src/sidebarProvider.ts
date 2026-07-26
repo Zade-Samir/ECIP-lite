@@ -2,6 +2,29 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export class ProposedContentProvider implements vscode.TextDocumentContentProvider {
+    private static _instance: ProposedContentProvider;
+    private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+    readonly onDidChange = this._onDidChange.event;
+    private _contents = new Map<string, string>();
+
+    public static getInstance(): ProposedContentProvider {
+        if (!ProposedContentProvider._instance) {
+            ProposedContentProvider._instance = new ProposedContentProvider();
+        }
+        return ProposedContentProvider._instance;
+    }
+
+    public setContent(uri: vscode.Uri, content: string) {
+        this._contents.set(uri.toString(), content);
+        this._onDidChange.fire(uri);
+    }
+
+    public provideTextDocumentContent(uri: vscode.Uri): string {
+        return this._contents.get(uri.toString()) || '';
+    }
+}
+
 export class SidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'ecip-lite-chat-view';
     private _view?: vscode.WebviewView;
@@ -79,6 +102,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'insertCode': {
                     await this.insertCodeAtCursor(data.content);
+                    break;
+                }
+                case 'proposeDiff': {
+                    await this.proposeDiffReview(data.content);
                     break;
                 }
                 case 'applyCode': {
@@ -171,27 +198,74 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const data: any = await response.json();
             this.logDebug(`fetchWorkspaces data: ${JSON.stringify(data)}`);
 
-            // Proactively check if current folder is registered
-            const folders = vscode.workspace.workspaceFolders;
-            if (folders && folders.length > 0) {
-                const folderName = folders[0].name;
-                const folderPath = folders[0].uri.fsPath;
-                const registered = (data.workspaces || []).find((w: any) => w.project_id === folderName);
+            // Auto-select the best indexed project to show in UI
+            const allWorkspaces: any[] = data.workspaces || [];
+            const indexedProjects = allWorkspaces.filter((w: any) => w.indexed_files && w.indexed_files > 0);
+            let bestActive = data.active;
 
-                if (registered) {
-                    if (data.active !== folderName) {
-                        try {
-                            await fetch(`${this.getApiUrl()}/api/v1/workspaces/${folderName}/activate`, {
-                                method: 'PUT'
-                            });
-                            data.active = folderName;
-                            this.logDebug(`Automatically activated existing workspace: ${folderName}`);
-                        } catch (e) {
-                            this.logDebug(`Failed to auto-activate workspace: ${e}`);
-                        }
+            if (indexedProjects.length > 0) {
+                // Prefer the project matching the active editor file
+                const activeEditor = vscode.window.activeTextEditor;
+                if (activeEditor) {
+                    const activeFilePath = activeEditor.document.uri.fsPath;
+                    const matchedProject = indexedProjects.find((w: any) => activeFilePath.startsWith(w.root_path));
+                    if (matchedProject) {
+                        bestActive = matchedProject.project_id;
+                    } else {
+                        // Fall back to the project with most indexed files
+                        const top = indexedProjects.reduce((a: any, b: any) => 
+                            (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexedProjects[0]);
+                        bestActive = top.project_id;
                     }
                 } else {
-                    if (!this._isProactivelyIndexing.has(folderName)) {
+                    const top = indexedProjects.reduce((a: any, b: any) => 
+                        (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexedProjects[0]);
+                    bestActive = top.project_id;
+                }
+
+                if (bestActive && bestActive !== data.active) {
+                    try {
+                        await fetch(`${this.getApiUrl()}/api/v1/workspaces/${bestActive}/activate`, { method: 'PUT' });
+                        this.logDebug(`Auto-switched active workspace to: ${bestActive}`);
+                    } catch (e) {
+                        this.logDebug(`Failed to auto-activate: ${e}`);
+                    }
+                }
+            } else {
+                // No indexed projects yet — try to index the current VS Code workspace or active file project
+                const activeEditor = vscode.window.activeTextEditor;
+                let folderName: string | null = null;
+                let folderPath: string | null = null;
+
+                if (activeEditor) {
+                    let currentDir = require('path').dirname(activeEditor.document.uri.fsPath);
+                    while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                        if (
+                            require('fs').existsSync(require('path').join(currentDir, 'pom.xml')) ||
+                            require('fs').existsSync(require('path').join(currentDir, 'build.gradle')) ||
+                            require('fs').existsSync(require('path').join(currentDir, '.git'))
+                        ) {
+                            folderPath = currentDir;
+                            folderName = require('path').basename(currentDir);
+                            break;
+                        }
+                        const parent = require('path').dirname(currentDir);
+                        if (parent === currentDir) break;
+                        currentDir = parent;
+                    }
+                }
+
+                if (!folderName) {
+                    const folders = vscode.workspace.workspaceFolders;
+                    if (folders && folders.length > 0) {
+                        folderName = folders[0].name;
+                        folderPath = folders[0].uri.fsPath;
+                    }
+                }
+
+                if (folderName && folderPath) {
+                    const alreadyRegistered = allWorkspaces.find((w: any) => w.project_id === folderName);
+                    if (!alreadyRegistered && !this._isProactivelyIndexing.has(folderName)) {
                         this._isProactivelyIndexing.add(folderName);
                         this.logDebug(`Proactively registering and indexing: ${folderName}`);
                         this.proactiveIndexCurrentWorkspace(folderName, folderPath);
@@ -201,8 +275,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             this._view?.webview.postMessage({
                 type: 'workspacesList',
-                workspaces: data.workspaces || [],
-                active: data.active || null
+                workspaces: allWorkspaces,
+                active: bestActive || null
             });
         } catch (err: any) {
             this.logDebug(`fetchWorkspaces error: ${err.message || err}`);
@@ -261,7 +335,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (response.ok) {
                 const data: any = await response.json();
                 this.logDebug(`fetchModelsList data: ${JSON.stringify(data)}`);
-                vscode.window.showInformationMessage(`Models fetched: ${JSON.stringify(data.models)}`);
                 this._view?.webview.postMessage({
                     type: 'modelsList',
                     models: data.models || [],
@@ -287,44 +360,82 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     public async indexCurrentWorkspace() {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders || folders.length === 0) {
-            vscode.window.showErrorMessage('No workspace folder open in VS Code to index.');
+        let projectPath: string | null = null;
+        let projectAlias: string | null = null;
+
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const activeFilePath = activeEditor.document.uri.fsPath;
+            let currentDir = path.dirname(activeFilePath);
+            while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                if (
+                    fs.existsSync(path.join(currentDir, 'pom.xml')) || 
+                    fs.existsSync(path.join(currentDir, 'build.gradle')) || 
+                    fs.existsSync(path.join(currentDir, '.git'))
+                ) {
+                    projectPath = currentDir;
+                    projectAlias = path.basename(currentDir);
+                    break;
+                }
+                const parent = path.dirname(currentDir);
+                if (parent === currentDir) break;
+                currentDir = parent;
+            }
+
+            if (!projectPath) {
+                projectPath = path.dirname(activeFilePath);
+                projectAlias = path.basename(projectPath);
+            }
+        }
+
+        if (!projectPath) {
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders && folders.length > 0) {
+                projectPath = folders[0].uri.fsPath;
+                projectAlias = folders[0].name;
+            }
+        }
+
+        if (!projectPath || !projectAlias) {
+            vscode.window.showErrorMessage('No active file or workspace folder open in VS Code to index.');
             return;
         }
 
-        const projectPath = folders[0].uri.fsPath;
-        const projectAlias = folders[0].name;
+        const finalProjectPath = projectPath;
+        const finalProjectAlias = projectAlias;
 
         // Notify user indexing started
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: `ECIP Lite: Indexing ${projectAlias}...`,
+            title: `ECIP Lite: Indexing ${finalProjectAlias}...`,
             cancellable: false
         }, async (progress) => {
             try {
-                // First, register workspace
                 const regResponse = await fetch(`${this.getApiUrl()}/api/v1/workspaces`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_id: projectAlias,
-                        alias: projectAlias,
-                        root_path: projectPath
+                        project_id: finalProjectAlias,
+                        alias: finalProjectAlias,
+                        root_path: finalProjectPath
                     })
                 });
 
                 if (!regResponse.ok && regResponse.status !== 409 && regResponse.status !== 500) {
-                    throw new Error('Failed to register workspace.');
+                    const regErr = await regResponse.text();
+                    throw new Error(`Workspace registration failed: ${regErr}`);
                 }
 
-                // Trigger indexing
+                await fetch(`${this.getApiUrl()}/api/v1/workspaces/${finalProjectAlias}/activate`, {
+                    method: 'PUT'
+                });
+
                 const indexResponse = await fetch(`${this.getApiUrl()}/api/v1/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_path: projectPath,
-                        project_alias: projectAlias
+                        project_path: finalProjectPath,
+                        project_alias: finalProjectAlias
                     })
                 });
 
@@ -333,7 +444,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     throw new Error(`Indexing failed: ${errorDetails}`);
                 }
 
-                vscode.window.showInformationMessage(`Successfully indexed project: ${projectAlias}`);
+                const resData: any = await indexResponse.json();
+                const totalFiles = (resData.files_scanned !== undefined) ? resData.files_scanned : (resData.files_indexed || 0);
+                vscode.window.showInformationMessage(
+                    `ECIP: Successfully indexed ${finalProjectAlias}! (${totalFiles} files scanned)`
+                );
                 await this.fetchWorkspaces();
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Indexing error: ${err.message}`);
@@ -342,20 +457,47 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     public async indexSingleFile(filePath: string) {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders || folders.length === 0) { return; }
-
-        const projectPath = folders[0].uri.fsPath;
-        const projectAlias = folders[0].name;
-
-        // Only re-index files that belong to the current workspace
-        if (!filePath.startsWith(projectPath)) { return; }
-
         const SUPPORTED_EXTENSIONS = ['.java', '.sql', '.properties', '.yml', '.yaml'];
         const ext = filePath.slice(filePath.lastIndexOf('.'));
         if (!SUPPORTED_EXTENSIONS.includes(ext)) { return; }
 
-        // Debounce: cancel previous timer for this file if another save comes quickly
+        let targetProjectPath: string | null = null;
+        let targetProjectAlias: string | null = null;
+
+        const folders = vscode.workspace.workspaceFolders;
+        if (folders && folders.length > 0) {
+            for (const folder of folders) {
+                if (filePath.startsWith(folder.uri.fsPath)) {
+                    targetProjectPath = folder.uri.fsPath;
+                    targetProjectAlias = folder.name;
+                    break;
+                }
+            }
+        }
+
+        if (!targetProjectPath) {
+            let currentDir = path.dirname(filePath);
+            while (currentDir && currentDir !== '/' && currentDir !== '.') {
+                if (
+                    fs.existsSync(path.join(currentDir, 'pom.xml')) || 
+                    fs.existsSync(path.join(currentDir, 'build.gradle')) || 
+                    fs.existsSync(path.join(currentDir, '.git'))
+                ) {
+                    targetProjectPath = currentDir;
+                    targetProjectAlias = path.basename(currentDir);
+                    break;
+                }
+                const parent = path.dirname(currentDir);
+                if (parent === currentDir) break;
+                currentDir = parent;
+            }
+
+            if (!targetProjectPath) {
+                targetProjectPath = path.dirname(filePath);
+                targetProjectAlias = path.basename(targetProjectPath);
+            }
+        }
+
         const existingTimer = this._saveDebounceTimers.get(filePath);
         if (existingTimer) {
             clearTimeout(existingTimer);
@@ -363,15 +505,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         const timer = setTimeout(async () => {
             this._saveDebounceTimers.delete(filePath);
-            this.logDebug(`Auto re-indexing saved file: ${filePath}`);
+            this.logDebug(`Auto re-indexing saved file: ${filePath} in project ${targetProjectAlias}`);
 
             try {
                 const response = await fetch(`${this.getApiUrl()}/api/v1/index`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        project_path: projectPath,
-                        project_alias: projectAlias
+                        project_path: targetProjectPath,
+                        project_alias: targetProjectAlias
                     })
                 });
 
@@ -381,13 +523,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         `$(sync~spin) ECIP: Re-indexed ${fileName}`,
                         3000
                     );
+                    await this.fetchWorkspaces();
                 } else {
                     this.logDebug(`Auto re-index failed with status: ${response.status}`);
                 }
             } catch (e) {
                 this.logDebug(`Auto re-index fetch error: ${e}`);
             }
-        }, 1500); // 1.5 sec debounce: wait for rapid successive saves to settle
+        }, 1000);
 
         this._saveDebounceTimers.set(filePath, timer);
     }
@@ -540,6 +683,224 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             this.indexSingleFile(document.fileName);
         } catch (err: any) {
             vscode.window.showErrorMessage(`Failed to insert code: ${err.message}`);
+        }
+    }
+
+    private smartMergeJavaCode(originalText: string, snippetText: string): string {
+        if (!originalText || !originalText.trim()) {
+            return snippetText;
+        }
+
+        const snippetLines = snippetText.split('\n');
+        const originalLines = originalText.split('\n');
+
+        const originalImportSet = new Set(
+            originalLines
+                .filter(line => line.trim().startsWith('import '))
+                .map(line => line.trim())
+        );
+
+        const wildcardImports = Array.from(originalImportSet).filter(imp => imp.endsWith('.*;'));
+
+        const newImports: string[] = [];
+        for (const line of snippetLines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('import ')) {
+                if (!originalImportSet.has(trimmed)) {
+                    const packagePkg = trimmed.replace('import ', '').replace(';', '');
+                    const covered = wildcardImports.some(w => {
+                        const prefix = w.replace('import ', '').replace('.*;', '');
+                        return packagePkg.startsWith(prefix);
+                    });
+
+                    if (!covered) {
+                        newImports.push(trimmed);
+                        originalImportSet.add(trimmed);
+                    }
+                }
+            }
+        }
+
+        let snippetBody = snippetText;
+        const classDeclIndex = snippetText.indexOf('class ');
+        if (classDeclIndex !== -1) {
+            const firstBrace = snippetText.indexOf('{', classDeclIndex);
+            const lastBrace = snippetText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+                snippetBody = snippetText.substring(firstBrace + 1, lastBrace);
+            }
+        }
+
+        const bodyLines = snippetBody.split('\n');
+        const cleanedBodyLines: string[] = [];
+
+        const classNameMatch = originalText.match(/(?:class|interface)\s+([A-Za-z0-9_]+)/);
+        const className = classNameMatch ? classNameMatch[1] : '';
+
+        for (let i = 0; i < bodyLines.length; i++) {
+            const line = bodyLines[i];
+            const trimmed = line.trim();
+
+            if (
+                trimmed.startsWith('package ') || 
+                trimmed.startsWith('import ') || 
+                trimmed.startsWith('@RestController') || 
+                trimmed.startsWith('@Controller') || 
+                trimmed.startsWith('@Service') || 
+                trimmed.startsWith('@Repository') || 
+                trimmed.startsWith('@RequestMapping') || 
+                trimmed.startsWith('public class ') || 
+                trimmed.startsWith('class ')
+            ) {
+                continue;
+            }
+
+            if (
+                trimmed.startsWith('//') && (
+                    trimmed.toLowerCase().includes('existing') || 
+                    trimmed.toLowerCase().includes('other') || 
+                    trimmed.includes('...') || 
+                    trimmed.toLowerCase().includes('rest of') ||
+                    trimmed.toLowerCase().includes('methods')
+                )
+            ) {
+                continue;
+            }
+            if (trimmed === '//' || trimmed === '// ...' || trimmed === '/* ... */') {
+                continue;
+            }
+
+            if (trimmed.startsWith('private ') || trimmed.startsWith('protected ') || trimmed.startsWith('public ')) {
+                const isField = trimmed.endsWith(';') && !trimmed.includes('(');
+                if (isField && originalText.includes(trimmed)) {
+                    continue;
+                }
+            }
+
+            if (className && trimmed.startsWith(`public ${className}(`)) {
+                let braceCount = 0;
+                let j = i;
+                for (; j < bodyLines.length; j++) {
+                    if (bodyLines[j].includes('{')) braceCount++;
+                    if (bodyLines[j].includes('}')) braceCount--;
+                    if (braceCount === 0 && j > i) break;
+                }
+                i = j;
+                continue;
+            }
+
+            if (trimmed === '@Autowired') {
+                let nextLine = '';
+                for (let k = i + 1; k < bodyLines.length; k++) {
+                    if (bodyLines[k].trim()) {
+                        nextLine = bodyLines[k].trim();
+                        break;
+                    }
+                }
+                if (
+                    !nextLine || 
+                    (className && nextLine.startsWith(`public ${className}(`)) || 
+                    (className && originalText.includes(nextLine)) ||
+                    nextLine.startsWith('//')
+                ) {
+                    continue;
+                }
+            }
+
+            cleanedBodyLines.push(line);
+        }
+
+        const newCodeToInsert = cleanedBodyLines.join('\n').trim();
+
+        let mergedText = originalText;
+        if (newImports.length > 0) {
+            let lastImportIdx = -1;
+            for (let i = 0; i < originalLines.length; i++) {
+                if (originalLines[i].trim().startsWith('import ')) {
+                    lastImportIdx = i;
+                }
+            }
+
+            if (lastImportIdx !== -1) {
+                const before = originalLines.slice(0, lastImportIdx + 1).join('\n');
+                const after = originalLines.slice(lastImportIdx + 1).join('\n');
+                mergedText = before + '\n' + newImports.join('\n') + after;
+            } else {
+                const pkgIdx = originalLines.findIndex(l => l.trim().startsWith('package '));
+                if (pkgIdx !== -1) {
+                    const before = originalLines.slice(0, pkgIdx + 1).join('\n');
+                    const after = originalLines.slice(pkgIdx + 1).join('\n');
+                    mergedText = before + '\n\n' + newImports.join('\n') + after;
+                }
+            }
+        }
+
+        if (newCodeToInsert) {
+            const lastBraceIndex = mergedText.lastIndexOf('}');
+            if (lastBraceIndex !== -1) {
+                mergedText = mergedText.substring(0, lastBraceIndex) + 
+                    "\n\n    " + newCodeToInsert + "\n" + 
+                    mergedText.substring(lastBraceIndex);
+            } else {
+                mergedText += "\n\n" + newCodeToInsert;
+            }
+        }
+
+        return mergedText;
+    }
+
+    private async proposeDiffReview(content: string) {
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor open in VS Code to review proposed diff.');
+                return;
+            }
+
+            const document = editor.document;
+            const originalUri = document.uri;
+            const fileName = path.basename(document.fileName);
+
+            const originalText = document.getText();
+            const proposedText = this.smartMergeJavaCode(originalText, content);
+
+            const proposedUri = vscode.Uri.parse(`ecip-proposed:/${fileName}`);
+            ProposedContentProvider.getInstance().setContent(proposedUri, proposedText);
+
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                originalUri,
+                proposedUri,
+                `${fileName} ↔ ECIP Proposed Edits`
+            );
+
+            const choice = await vscode.window.showInformationMessage(
+                `ECIP Proposes Changes for ${fileName}. Review diff and select action:`,
+                'Accept All',
+                'Reject All'
+            );
+
+            if (choice === 'Accept All') {
+                const activeEd = vscode.window.visibleTextEditors.find(e => e.document.uri.fsPath === document.uri.fsPath) || editor;
+                const fullRange = new vscode.Range(
+                    activeEd.document.positionAt(0),
+                    activeEd.document.positionAt(activeEd.document.getText().length)
+                );
+
+                await activeEd.edit(editBuilder => {
+                    editBuilder.replace(fullRange, proposedText);
+                });
+
+                await activeEd.document.save();
+                vscode.window.showInformationMessage(`ECIP: Accepted changes in ${fileName}`);
+                this.indexSingleFile(document.fileName);
+                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            } else if (choice === 'Reject All') {
+                vscode.window.showInformationMessage(`ECIP: Rejected changes for ${fileName}`);
+                await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            }
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Diff Review failed: ${err.message}`);
         }
     }
 
@@ -929,6 +1290,114 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             justify-content: space-between;
         }
 
+        .pending-card {
+            background-color: #1e1e1e;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pending-file-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #2a2a2a;
+            border: 1px solid #3d3d3d;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .pending-file-row:hover {
+            background-color: #333333;
+            border-color: #555555;
+        }
+
+        .diff-badge-add {
+            color: #4ade80;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .diff-badge-del {
+            color: #f87171;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .pending-file-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .pending-file-path {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-left: auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 130px;
+        }
+
+        .pending-actions-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 4px;
+        }
+
+        .pending-files-count {
+            font-size: 11px;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pending-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        button.btn-reject-all {
+            background: none;
+            border: none;
+            color: #cbd5e1;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        button.btn-reject-all:hover {
+            color: #f87171;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        button.btn-accept-all {
+            background-color: #2563eb;
+            border: none;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button.btn-accept-all:hover {
+            background-color: #1d4ed8;
+        }
+
         .input-container {
             background-color: #1a1a1a;
             border: 1px solid var(--border-color);
@@ -1138,16 +1607,34 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
 
+    <!-- Pending Changes Bar (Antigravity & Copilot Edits style) -->
+    <div class="pending-card" id="pending-changes-card" style="display: none;">
+        <div class="pending-file-row" id="pending-file-item" title="Click to view Side-by-Side Diff">
+            <span>📙</span>
+            <span class="diff-badge-add" id="pending-stat-add">+0</span>
+            <span class="diff-badge-del" id="pending-stat-del">-0</span>
+            <span class="pending-file-name" id="pending-file-name">filename.java</span>
+            <span class="pending-file-path" id="pending-file-path">path/to/file</span>
+        </div>
+        <div class="pending-actions-row">
+            <span class="pending-files-count">📄 1 File With Changes</span>
+            <div class="pending-buttons">
+                <button class="btn-reject-all" id="btn-pending-reject">Reject all</button>
+                <button class="btn-accept-all" id="btn-pending-accept">Accept all</button>
+            </div>
+        </div>
+    </div>
+
     <div class="input-container">
         <textarea id="question-input" placeholder="Ask a question about the code..."></textarea>
         <div class="input-actions">
             <div class="left-actions">
                 <div class="model-select-wrapper" title="Select Local LLM Model">
                     <span>+</span>
-                    <span id="selected-model-label">Loading...</span>
+                    <span id="selected-model-label"></span>
                     <span>▾</span>
                     <select id="model-select">
-                        <option value="">Loading...</option>
+                        <option value=""></option>
                     </select>
                 </div>
             </div>
@@ -1222,9 +1709,40 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Pull initial configurations - sent AFTER message listener is registered below
 
-        // Index current folder
+        // Index current folder – call backend directly from webview to avoid timing issues
         indexCurrBtn.addEventListener('click', () => {
-            vscode.postMessage({ type: 'indexCurrentWorkspace' });
+            const btnOrigText = indexCurrBtn.textContent;
+            indexCurrBtn.disabled = true;
+            indexCurrBtn.textContent = '⏳ Indexing...';
+
+            // Use the currently selected project path or request from extension
+            const selectedProjectId = select.value;
+            const selectedProject = currentWorkspaces.find(w => w.project_id === selectedProjectId);
+
+            if (selectedProject && selectedProject.root_path) {
+                // We already know the path – call API directly
+                fetch('http://127.0.0.1:8000/api/v1/index', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_path: selectedProject.root_path,
+                        project_alias: selectedProject.project_id
+                    })
+                }).then(r => r.json()).then(data => {
+                    indexCurrBtn.disabled = false;
+                    indexCurrBtn.textContent = btnOrigText;
+                    vscode.postMessage({ type: 'getWorkspaces' });
+                }).catch(err => {
+                    indexCurrBtn.disabled = false;
+                    indexCurrBtn.textContent = btnOrigText;
+                    vscode.postMessage({ type: 'showWarning', message: 'Indexing failed: ' + err.message });
+                });
+            } else {
+                // Fallback to extension handler
+                vscode.postMessage({ type: 'indexCurrentWorkspace' });
+                indexCurrBtn.disabled = false;
+                indexCurrBtn.textContent = btnOrigText;
+            }
         });
 
         function updateStatusBadge() {
@@ -1460,6 +1978,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                             }
 
                             renderAssistantMetadata(activeBubble, message);
+
+                            // Trigger Pending Changes Bar if code block is generated
+                            const codePre = activeBubble.querySelector('.code-block-container pre');
+                            if (codePre) {
+                                const codeText = codePre.innerText || codePre.textContent;
+                                let citationPath = "";
+                                if (message.citations && message.citations.length > 0) {
+                                    citationPath = message.citations[0].file_path;
+                                }
+                                updatePendingCard(codeText, citationPath);
+                            }
                         }
                         activeBubble.id = "";
                     }
@@ -1499,6 +2028,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         logWebview("Posting ready event");
         vscode.postMessage({ type: 'ready' });
 
+        // Also directly fetch models and workspaces from backend
+        // This ensures UI populates even if the extension message round-trip has timing issues
+        setTimeout(() => {
+            fetch('http://127.0.0.1:8000/api/v1/query/models')
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.models && data.models.length > 0) {
+                        updateModelDropdown(data.models, data.models[0]);
+                    }
+                })
+                .catch(() => {});
+
+            fetch('http://127.0.0.1:8000/api/v1/workspaces')
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.workspaces) {
+                        currentWorkspaces = data.workspaces;
+                        const indexed = data.workspaces.filter(w => w.indexed_files && w.indexed_files > 0);
+                        const bestId = indexed.length > 0 ? indexed.reduce((a, b) =>
+                            (b.indexed_files || 0) > (a.indexed_files || 0) ? b : a, indexed[0]).project_id : null;
+                        updateProjectSelect(data.workspaces, bestId);
+                    }
+                })
+                .catch(() => {});
+        }, 300);
+
         function updateProjectSelect(workspaces, activeId) {
             select.innerHTML = '';
             if (workspaces.length === 0) {
@@ -1510,18 +2065,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 return;
             }
 
+            let bestId = activeId;
+            // If the backend-suggested active is 'default' with 0 files, prefer first indexed project
+            if (!bestId || bestId === 'default') {
+                const firstIndexed = workspaces.find(w => w.indexed_files && w.indexed_files > 0);
+                if (firstIndexed) bestId = firstIndexed.project_id;
+            }
+
             workspaces.forEach(w => {
                 const opt = document.createElement('option');
                 opt.value = w.project_id;
-                opt.textContent = w.alias + (w.is_active ? ' (active)' : '');
-                if (w.project_id === activeId || w.is_active) {
+                const fileCount = (w.indexed_files && w.indexed_files > 0) ? ' (' + w.indexed_files + ' files)' : '';
+                opt.textContent = w.alias + fileCount;
+                if (w.project_id === bestId) {
                     opt.selected = true;
                 }
                 select.appendChild(opt);
             });
             updateStatusBadge();
 
-            // Trigger history restore for the active project
             if (select.value) {
                 vscode.postMessage({
                     type: 'selectProject',
@@ -1583,6 +2145,82 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             scrollToBottom();
         }
 
+        let pendingCodeText = "";
+
+        function updatePendingCard(codeText, citationFile) {
+            if (!codeText || !codeText.trim()) return;
+
+            pendingCodeText = codeText;
+            const linesCount = codeText.trim().split('\n').length;
+            const addCount = '+' + linesCount;
+            const delCount = '-0';
+
+            let fileName = "Modified File";
+            let filePath = "";
+
+            if (citationFile) {
+                filePath = citationFile;
+                fileName = citationFile.split('/').pop().split('\\').pop();
+            } else {
+                const classMatch = codeText.match(/(?:class|interface)\s+([A-Za-z0-9_]+)/);
+                if (classMatch) {
+                    fileName = classMatch[1] + ".java";
+                }
+            }
+
+            const card = document.getElementById('pending-changes-card');
+            const nameEl = document.getElementById('pending-file-name');
+            const pathEl = document.getElementById('pending-file-path');
+            const addEl = document.getElementById('pending-stat-add');
+            const delEl = document.getElementById('pending-stat-del');
+
+            if (card && nameEl && addEl && delEl) {
+                nameEl.textContent = fileName;
+                pathEl.textContent = filePath;
+                addEl.textContent = addCount;
+                delEl.textContent = delCount;
+                card.style.display = 'flex';
+                scrollToBottom(true);
+            }
+        }
+
+        const fileItem = document.getElementById('pending-file-item');
+        if (fileItem) {
+            fileItem.addEventListener('click', () => {
+                if (pendingCodeText) {
+                    vscode.postMessage({
+                        type: 'proposeDiff',
+                        content: pendingCodeText
+                    });
+                }
+            });
+        }
+
+        const btnAccept = document.getElementById('btn-pending-accept');
+        if (btnAccept) {
+            btnAccept.addEventListener('click', () => {
+                if (pendingCodeText) {
+                    vscode.postMessage({
+                        type: 'proposeDiff',
+                        content: pendingCodeText
+                    });
+                    document.getElementById('pending-changes-card').style.display = 'none';
+                }
+            });
+        }
+
+        const btnReject = document.getElementById('btn-pending-reject');
+        if (btnReject) {
+            btnReject.addEventListener('click', () => {
+                pendingCodeText = "";
+                document.getElementById('pending-changes-card').style.display = 'none';
+                vscode.postMessage({
+                    type: 'showInfo',
+                    message: 'ECIP: Proposed changes rejected.'
+                });
+            });
+        }
+
         window.copyCodeBlock = function(btn) {
             const pre = btn.closest('.code-block-container').querySelector('pre');
             const codeText = pre.innerText || pre.textContent;
@@ -1596,6 +2234,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 setTimeout(() => {
                     btn.innerHTML = originalInner;
                 }, 2000);
+            });
+        };
+
+        window.proposeDiffBlock = function(btn) {
+            const pre = btn.closest('.code-block-container').querySelector('pre');
+            const codeText = pre.innerText || pre.textContent;
+            vscode.postMessage({
+                type: 'proposeDiff',
+                content: codeText
             });
         };
 
@@ -1643,8 +2290,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         '<div class="code-block-header">' +
                             '<span class="code-block-lang"><span class="code-icon">&lt;/&gt;</span> ' + language + '</span>' +
                             '<div style="display: flex; gap: 4px;">' +
-                                '<button class="btn-copy" onclick="insertCodeBlock(this)" title="Insert snippet at cursor position in VS Code active editor" style="background-color: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">📥 Accept / Insert</button>' +
-                                '<button class="btn-copy" onclick="applyCodeBlock(this)" title="Replace whole file content in VS Code active editor">📝 Replace All</button>' +
+                                '<button class="btn-copy" onclick="proposeDiffBlock(this)" title="Review proposed changes side-by-side with Accept/Reject buttons" style="background-color: #2563eb; border-color: #3b82f6; color: #ffffff; font-weight: 600;">🔍 Review Diff & Accept</button>' +
+                                '<button class="btn-copy" onclick="insertCodeBlock(this)" title="Insert snippet at cursor position in VS Code active editor" style="background-color: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;">📥 Insert at Cursor</button>' +
                                 '<button class="btn-copy" onclick="createFileBlock(this)" title="Create a new file in workspace">➕ Create File</button>' +
                                 '<button class="btn-copy" onclick="copyCodeBlock(this)" title="Copy code to clipboard">Copy</button>' +
                             '</div>' +
@@ -1736,32 +2383,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         function updateModelDropdown(models, selected) {
             logWebview("updateModelDropdown called. models=" + JSON.stringify(models) + ", selected=" + selected);
-            if (!modelSelect || !selectedModelLabel) {
-                logWebview("updateModelDropdown early return because elements missing");
-                return;
-            }
-            modelSelect.innerHTML = '';
-            
-            if (models.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = selected || 'qwen2.5-coder:3b';
-                opt.textContent = selected || 'qwen2.5-coder:3b';
-                modelSelect.appendChild(opt);
-                selectedModelLabel.textContent = selected || 'qwen2.5-coder:3b';
-                return;
-            }
+            const sel = modelSelect || document.getElementById('model-select');
+            const label = selectedModelLabel || document.getElementById('selected-model-label');
+            if (!sel || !label) return;
 
-            models.forEach(model => {
+            sel.innerHTML = '';
+            const mList = (models && models.length > 0) ? models : ['qwen2.5-coder:3b'];
+            const activeSel = selected || mList[0];
+
+            mList.forEach(m => {
                 const opt = document.createElement('option');
-                opt.value = model;
-                opt.textContent = model;
-                if (model === selected) {
+                opt.value = m;
+                opt.textContent = m;
+                if (m === activeSel) {
                     opt.selected = true;
                 }
-                modelSelect.appendChild(opt);
+                sel.appendChild(opt);
             });
 
-            selectedModelLabel.textContent = selected || models[0];
+            label.textContent = activeSel;
         }
 
         if (modelSelect) {

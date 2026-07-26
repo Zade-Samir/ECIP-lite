@@ -123,6 +123,8 @@ class IndexBuilder:
             for f in all_files:
                 self.repository.clear_file_hash(str(f.resolve()))
 
+        parsed_all_map = {}
+
         for file in all_files:
             file_path_str = str(file.resolve())
             curr_hash = active_files[file_path_str]
@@ -191,6 +193,7 @@ class IndexBuilder:
                     # Re-parse changed Java file — non-fatal: skip file on error
                     try:
                         parsed = self.parser.parse(file_path_str)
+                        parsed_all_map[file_path_str] = parsed
                     except Exception as e:
                         logger.warning(f"Parse failure for {file.name} (invalid syntax?) — skipping: {e}")
                         stats["indexed"] -= 1
@@ -233,8 +236,7 @@ class IndexBuilder:
                         stats["total_chunks"] += len(chunks)
                         stats["total_batches"] += batch_count
 
-                        for embedding in embeddings:
-                            self.faiss_store.add(embedding)
+                        self.faiss_store.add_batch(embeddings, auto_save=False)
                     except Exception as e:
                         logger.warning(f"Embedding failure for {file.name} — skipping: {e}")
                         stats["indexed"] -= 1
@@ -245,11 +247,17 @@ class IndexBuilder:
         if git_chunks:
             try:
                 embeddings = self.embedding_service.generate_batch(git_chunks)
-                for embedding in embeddings:
-                    self.faiss_store.add(embedding)
+                self.faiss_store.add_batch(embeddings, auto_save=False)
                 logger.info("History updated")
             except Exception as e:
                 logger.error(f"Failed to index git history chunks: {e}")
+
+        # Save FAISS store index once after all chunks have been added
+        try:
+            self.faiss_store.save()
+            logger.info("FAISS index saved")
+        except Exception as e:
+            logger.error(f"Failed to save FAISS store: {e}")
 
         # Build and save BM25 index
         try:
@@ -274,32 +282,35 @@ class IndexBuilder:
         except Exception as e:
             logger.error(f"Failed to build BM25 index: {e}")
 
-        # Build Call Graph
+        # Build Call Graph (reusing parsed ASTs where available)
         try:
             from ecip_core.callgraph.builder import CallGraphBuilder
             call_graph_builder = CallGraphBuilder()
-            parsed_all = []
+            parsed_all = list(parsed_all_map.values())
             for file in java_files:
-                try:
-                    parsed_all.append(self.parser.parse(str(file.resolve())))
-                except Exception as e:
-                    logger.warning(f"Failed to parse {file} during call graph building: {e}")
+                file_path_str = str(file.resolve())
+                if file_path_str not in parsed_all_map:
+                    try:
+                        parsed_all.append(self.parser.parse(file_path_str))
+                    except Exception as e:
+                        logger.warning(f"Failed to parse {file} during call graph building: {e}")
             call_graph_builder.build(project_id, parsed_all)
             logger.info("Call graph generated")
         except Exception as e:
             logger.error(f"Failed to generate call graph: {e}")
 
-
         duration = time.perf_counter() - start_time
         logger.info(f"Total duration: {duration:.4f}s")
 
         # Summary report
-        print(f"\n--- Indexing Summary Report ---")
-        print(f"Files Skipped:   {stats['skipped']}")
-        print(f"Files Indexed:   {stats['indexed']}")
-        print(f"Files Removed:   {stats['removed']}")
-        print(f"Chunks Embedded: {stats['total_chunks']} (in {stats['total_batches']} batches)")
-        print(f"Total Duration:  {duration:.4f}s\n")
+        logger.info("--- Indexing Summary Report ---")
+        logger.info(f"Files Skipped:   {stats['skipped']}")
+        logger.info(f"Files Indexed:   {stats['indexed']}")
+        logger.info(f"Files Removed:   {stats['removed']}")
+        logger.info(f"Chunks Embedded: {stats['total_chunks']} (in {stats['total_batches']} batches)")
+        logger.info(f"Total Duration:  {duration:.4f}s")
+
+        return self.faiss_store
 
         return self.faiss_store
 
