@@ -6,6 +6,7 @@ import WhyEcip from './components/WhyEcip';
 import Features from './components/Features';
 import Playground from './components/Playground';
 import Pipeline from './components/Pipeline';
+import RepositoryCalculator from './components/Calculator';
 import ComparisonTable from './components/ComparisonTable';
 import Quickstart from './components/Quickstart';
 import Roadmap from './components/Roadmap';
@@ -37,6 +38,7 @@ export default function App() {
         <Features />
         <Playground />
         <Pipeline />
+        <RepositoryCalculator />
         <ComparisonTable />
         <Quickstart />
         <Roadmap />
